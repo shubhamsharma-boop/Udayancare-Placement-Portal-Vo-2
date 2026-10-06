@@ -13,7 +13,7 @@ window.UCPP_CONFIG = Object.freeze({
   API_URL:
     'https://script.google.com/macros/s/AKfycbzP1iAr9ZGpbkTefWnmy6s8cQ81at4bCSMnhDdp23Gjlo9cLbQwrtFTH4ierh6S6GAb/exec',
 
-  API_TIMEOUT: 15000,
+  API_TIMEOUT: 30000,
 
   JOBS_PER_PAGE: 10
 
