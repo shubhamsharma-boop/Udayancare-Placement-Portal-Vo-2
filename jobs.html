@@ -2,1038 +2,406 @@
 <html lang="en">
 
 <head>
+  <meta charset="UTF-8">
 
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
 
-<title>Jobs | Udayan Care Placement Portal</title>
+  <title>Jobs | Udayan Care Placement Portal</title>
 
-<meta name="description"
-content="Browse verified job opportunities through Udayan Care Placement Portal.">
+  <meta
+    name="description"
+    content="Explore employment opportunities available through Udayan Care Placement Portal."
+  >
 
-<link rel="stylesheet" href="css/style.css">
+  <!-- Existing common/global stylesheet -->
+  <link rel="stylesheet" href="css/style.css">
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-
-<link rel="stylesheet"
-href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
-
+  <!-- V2 Jobs Page CSS -->
+  <link rel="stylesheet" href="css/pages/jobs.css">
 </head>
+
 
 <body>
 
-<!-- =========================
-TOP BAR
-========================= -->
+  <!-- ============================= -->
+  <!-- HEADER -->
+  <!-- ============================= -->
 
-<div class="topbar">
+  <header class="jobs-header">
 
-<div class="container topbar-content">
+    <div class="jobs-header__container">
 
-<div class="top-left">
+      <a
+        href="index.html"
+        class="jobs-brand"
+        aria-label="Udayan Care Placement Portal Home"
+      >
+        <div class="jobs-brand__title">
+          Udayan Care
+        </div>
 
-<span>
+        <div class="jobs-brand__subtitle">
+          Placement Portal
+        </div>
+      </a>
 
-<i class="fa-solid fa-phone"></i>
 
-+91-11-27821333
+      <nav
+        class="jobs-nav"
+        aria-label="Main navigation"
+      >
 
-</span>
+        <a href="index.html">
+          Home
+        </a>
 
-<span>
+        <a
+          href="jobs.html"
+          class="active"
+          aria-current="page"
+        >
+          Jobs
+        </a>
 
-<i class="fa-solid fa-envelope"></i>
+        <a href="candidate-login.html">
+          Candidate Login
+        </a>
 
-placement@udayancare.org
+        <a href="employer-login.html">
+          Employer Login
+        </a>
 
-</span>
+      </nav>
 
-</div>
+    </div>
 
-<div class="top-right">
+  </header>
 
-<a id="facebookLink" href="#"><i class="fab fa-facebook-f"></i></a>
 
-<a id="linkedinLink" href="#"><i class="fab fa-linkedin-in"></i></a>
+  <!-- ============================= -->
+  <!-- PAGE HERO -->
+  <!-- ============================= -->
 
-<a id="instagramLink" href="#"><i class="fab fa-instagram"></i></a>
+  <section class="jobs-hero">
 
-<a id="whatsappLink" href="#"><i class="fab fa-whatsapp"></i></a>
-    
-</div>
+    <div class="jobs-container">
 
-</div>
+      <span class="jobs-hero__badge">
+        Employment Opportunities
+      </span>
 
-</div>
+      <h1>
+        Find Your Next Opportunity
+      </h1>
 
+      <p>
+        Explore current job opportunities from employers
+        connected with Udayan Care.
+      </p>
 
-<!-- =========================
-HEADER
-========================= -->
+    </div>
 
-<header class="header">
+  </section>
 
-<div class="container navbar">
 
-<a href="index.html" class="logo">
+  <!-- ============================= -->
+  <!-- MAIN -->
+  <!-- ============================= -->
 
-<img class="siteLogo" alt="Logo">
+  <main class="jobs-main">
 
-</a>
+    <div class="jobs-container">
 
-<nav class="nav-menu">
 
-<a href="index.html">Home</a>
+      <!-- SEARCH -->
 
-<a href="about.html">About</a>
+      <section
+        class="jobs-search"
+        aria-label="Search jobs"
+      >
 
-<a href="jobs.html" class="active">Jobs</a>
+        <label
+          for="jobSearch"
+          class="sr-only"
+        >
+          Search jobs
+        </label>
 
-<a href="contact.html">Contact</a>
+        <input
+          type="search"
+          id="jobSearch"
+          placeholder="Search by job title, company, skill or location"
+          autocomplete="off"
+        >
+
+        <button
+          type="button"
+          id="searchButton"
+        >
+          Search
+        </button>
+
+      </section>
 
-<a href="candidate-login.html">Candidate Login</a>
 
-<a href="employer-login.html">Employer Login</a>
+      <!-- FILTERS -->
+
+      <section
+        class="jobs-filters"
+        aria-label="Job filters"
+      >
 
-</nav>
+        <select
+          id="cityFilter"
+          aria-label="Filter by city"
+        >
+          <option value="">
+            All Locations
+          </option>
+        </select>
 
-<button class="menu-toggle">
 
-<i class="fa-solid fa-bars"></i>
+        <select
+          id="categoryFilter"
+          aria-label="Filter by category"
+        >
+          <option value="">
+            All Categories
+          </option>
+        </select>
+
+
+        <select
+          id="jobTypeFilter"
+          aria-label="Filter by job type"
+        >
+          <option value="">
+            All Job Types
+          </option>
+        </select>
 
-</button>
+
+        <select
+          id="workModeFilter"
+          aria-label="Filter by work mode"
+        >
+          <option value="">
+            All Work Modes
+          </option>
+        </select>
+
 
-</div>
+        <button
+          type="button"
+          id="clearFilters"
+          class="jobs-filter-clear"
+        >
+          Clear Filters
+        </button>
+
+      </section>
 
-</header>
 
+      <!-- RESULTS HEADER -->
 
-<!-- =========================
-PAGE HERO
-========================= -->
+      <section class="jobs-results-header">
 
-<section class="hero">
+        <div>
 
-<div class="container hero-content">
+          <h2>
+            Available Jobs
+          </h2>
 
-<div class="hero-left">
+          <p
+            id="jobCount"
+            aria-live="polite"
+          >
+            Loading opportunities...
+          </p>
 
-<span class="hero-tag">
+        </div>
+
+      </section>
+
+
+      <!-- ========================= -->
+      <!-- SKELETON LOADER -->
+      <!-- ========================= -->
 
-<i class="fa-solid fa-briefcase"></i>
+      <div
+        id="jobsSkeleton"
+        class="jobs-grid"
+        aria-hidden="true"
+      >
 
-Verified Jobs
+        <article class="job-card job-card--skeleton">
+          <div class="skeleton skeleton--title"></div>
+          <div class="skeleton skeleton--text"></div>
+          <div class="skeleton skeleton--text-short"></div>
+          <div class="skeleton skeleton--footer"></div>
+        </article>
+
+
+        <article class="job-card job-card--skeleton">
+          <div class="skeleton skeleton--title"></div>
+          <div class="skeleton skeleton--text"></div>
+          <div class="skeleton skeleton--text-short"></div>
+          <div class="skeleton skeleton--footer"></div>
+        </article>
+
+
+        <article class="job-card job-card--skeleton">
+          <div class="skeleton skeleton--title"></div>
+          <div class="skeleton skeleton--text"></div>
+          <div class="skeleton skeleton--text-short"></div>
+          <div class="skeleton skeleton--footer"></div>
+        </article>
+
+      </div>
+
+
+      <!-- ========================= -->
+      <!-- JOB RESULTS -->
+      <!-- ========================= -->
 
-</span>
+      <div
+        id="jobsGrid"
+        class="jobs-grid"
+        aria-live="polite"
+        hidden
+      ></div>
 
-<h1>
 
-Find Your
+      <!-- ========================= -->
+      <!-- EMPTY STATE -->
+      <!-- ========================= -->
 
-<span>
+      <section
+        id="jobsEmpty"
+        class="jobs-state"
+        hidden
+      >
 
-Dream Career
+        <h3>
+          No jobs found
+        </h3>
 
-</span>
+        <p>
+          Try changing your search or filters.
+        </p>
 
-</h1>
+        <button
+          type="button"
+          id="emptyClearFilters"
+        >
+          View All Jobs
+        </button>
 
-<p>
+      </section>
 
-Explore verified employment opportunities from trusted employers across India.
 
-Apply directly using your Digital Profile.
+      <!-- ========================= -->
+      <!-- ERROR STATE -->
+      <!-- ========================= -->
 
-</p>
+      <section
+        id="jobsError"
+        class="jobs-state"
+        hidden
+      >
 
-<div class="hero-buttons">
+        <h3>
+          Unable to load jobs
+        </h3>
 
-<a href="#jobs"
+        <p id="jobsErrorMessage">
+          Please check your connection and try again.
+        </p>
 
-class="btn btn-primary">
+        <button
+          type="button"
+          id="retryJobs"
+        >
+          Retry
+        </button>
 
-Browse Jobs
+      </section>
 
-</a>
 
-<a href="candidate-register.html"
+      <!-- ========================= -->
+      <!-- PAGINATION -->
+      <!-- ========================= -->
 
-class="btn btn-outline">
+      <nav
+        id="jobsPagination"
+        class="jobs-pagination"
+        aria-label="Jobs pagination"
+        hidden
+      >
 
-Create Profile
+        <button
+          type="button"
+          id="previousPage"
+        >
+          ← Previous
+        </button>
 
-</a>
 
-</div>
+        <div
+          id="pageNumbers"
+          class="jobs-pagination__numbers"
+        ></div>
 
-</div>
 
-</div>
+        <button
+          type="button"
+          id="nextPage"
+        >
+          Next →
+        </button>
 
-</div>
+      </nav>
 
-</section>
+    </div>
 
+  </main>
 
 
-<!-- =========================
-SEARCH SECTION
-========================= -->
+  <!-- ============================= -->
+  <!-- FOOTER -->
+  <!-- ============================= -->
 
-<section class="section">
+  <footer class="jobs-footer">
 
-<div class="container">
+    <div class="jobs-container">
 
-<div class="section-title">
+      <p>
+        An Initiative of Udayan Care
+      </p>
 
-<span>
+      <p>
+        Udayan Care Placement Portal will not charge
+        candidates for employment opportunities.
+      </p>
 
-SEARCH JOBS
+    </div>
 
-</span>
+  </footer>
 
-<h2>
 
-Find Opportunities
+  <!-- ============================= -->
+  <!-- SCRIPTS -->
+  <!-- ORDER IS IMPORTANT -->
+  <!-- ============================= -->
 
-</h2>
+  <script src="js/config.js"></script>
 
-<p>
+  <script src="js/api.js"></script>
 
-Search jobs using title, location or job type.
-
-</p>
-
-</div>
-
-<div class="card"
-
-style="padding:30px;">
-
-<div class="dashboard-grid">
-
-<div>
-
-<label>
-
-Job Title
-
-</label>
-
-<input
-
-type="text"
-
-id="searchTitle"
-
-class="form-control"
-
-placeholder="Customer Support Executive">
-
-</div>
-
-<div>
-
-<label>
-
-Location
-
-</label>
-
-<input
-
-type="text"
-
-id="searchLocation"
-
-class="form-control"
-
-placeholder="Delhi NCR">
-
-</div>
-
-<div>
-
-<label>
-
-Job Type
-
-</label>
-
-<select
-
-id="searchType"
-
-class="form-control">
-
-<option value="">
-
-All Jobs
-
-</option>
-
-<option>
-
-Full Time
-
-</option>
-
-<option>
-
-Part Time
-
-</option>
-
-<option>
-
-Internship
-
-</option>
-
-<option>
-
-Apprenticeship
-
-</option>
-
-<option>
-
-Contract
-
-</option>
-
-</select>
-
-</div>
-
-</div>
-
-<div class="text-center"
-
-style="margin-top:25px;">
-
-<button
-
-id="searchBtn"
-
-class="btn btn-primary">
-
-<i class="fa-solid fa-magnifying-glass"></i>
-
-Search Jobs
-
-</button>
-
-<button
-
-id="resetBtn"
-
-class="btn btn-outline"
-
-style="margin-left:10px;">
-
-Reset
-
-</button>
-
-</div>
-
-</div>
-
-</div>
-
-</section>
-
-
-
-<!-- =========================
-AVAILABLE JOBS
-========================= -->
-
-<section
-
-class="section light-bg"
-
-id="jobs">
-
-<div class="container">
-
-<div class="section-title">
-
-<span>
-
-LATEST OPENINGS
-
-</span>
-
-<h2>
-
-Available Jobs
-
-</h2>
-
-<p>
-
-Browse verified and active job opportunities.
-
-</p>
-
-</div>
-
-
-
-<!-- Loading -->
-
-<div
-
-id="loadingJobs"
-
-class="card"
-
-style="padding:40px;text-align:center;">
-
-<i
-
-class="fa-solid fa-spinner fa-spin"
-
-style="font-size:35px;"></i>
-
-<h3 style="margin-top:15px;">
-
-Loading Jobs...
-
-</h3>
-
-</div>
-
-
-
-<!-- Jobs Grid -->
-
-<div
-
-id="jobsContainer"
-
-class="jobs-grid"
-
-style="display:none;">
-
-</div>
-
-    <div id="pagination" class="pagination"></div>
-
-
-
-<!-- Empty State -->
-
-<div
-
-id="noJobs"
-
-class="card"
-
-style="display:none;padding:50px;text-align:center;">
-
-<i
-
-class="fa-solid fa-briefcase"
-
-style="font-size:60px;color:#CBD5E1;"></i>
-
-<h2 style="margin-top:20px;">
-
-No Jobs Found
-
-</h2>
-
-<p>
-
-Please try another search.
-
-</p>
-
-</div>
-
-</div>
-
-</section>
-
-    <!-- =========================
-EMPLOYER CTA
-========================= -->
-
-<section class="cta">
-
-<div class="container">
-
-<div class="cta-box">
-
-<h2>
-
-Looking for Skilled & Job-Ready Talent?
-
-</h2>
-
-<p>
-
-Partner with Udayan Care and hire trained Shalini Fellows from across India.
-
-</p>
-
-<a
-
-href="employer-register.html"
-
-class="btn">
-
-Register Your Company
-
-</a>
-
-</div>
-
-</div>
-
-</section>
-
-
-<!-- =========================
-FOOTER
-========================= -->
-
-<footer class="footer">
-
-<div class="container">
-
-<div class="footer-grid">
-
-<div>
-
-<img
-
-class="siteLogo"
-
-style="height:60px;margin-bottom:20px;"
-
-alt="Logo">
-
-<p>
-
-Udayan Care Placement Portal connects Shalini Fellows with verified employers and supports career growth.
-
-</p>
-
-<div class="social-links">
-
-<a id="facebookLink" href="#"><i class="fab fa-facebook-f"></i></a>
-
-<a id="linkedinLink" href="#"><i class="fab fa-linkedin-in"></i></a>
-
-<a id="instagramLink" href="#"><i class="fab fa-instagram"></i></a>
-
-<a id="whatsappLink" href="#"><i class="fab fa-whatsapp"></i></a>
-
-</div>
-
-</div>
-
-
-<div>
-
-<h3>
-
-Quick Links
-
-</h3>
-
-<a href="index.html">Home</a>
-
-<a href="about.html">About</a>
-
-<a href="jobs.html">Jobs</a>
-
-<a href="contact.html">Contact</a>
-
-</div>
-
-
-<div>
-
-<h3>
-
-Candidates
-
-</h3>
-
-<a href="candidate-register.html">Register</a>
-
-<a href="candidate-login.html">Login</a>
-
-<a href="jobs.html">Available Jobs</a>
-
-<a href="my-applications.html">Applications</a>
-
-</div>
-
-
-<div>
-
-<h3>
-
-Employers
-
-</h3>
-
-<a href="employer-register.html">Register</a>
-
-<a href="employer-login.html">Login</a>
-
-<a href="post-job.html">Post Job</a>
-
-<a href="manage-jobs.html">Manage Jobs</a>
-
-</div>
-
-</div>
-
-
-<div class="footer-bottom">
-
-<p>
-© 2026 Udayan Care Placement Portal | An Initiative of Udayan Care | All Rights Reserved.
-</p>
-
-</div>
-
-</div>
-
-</footer>
-
-
-
-<div class="back-top">
-
-<i class="fa-solid fa-arrow-up"></i>
-
-</div>
-
-
-
-<!-- =========================
-JS FILES
-========================= -->
-
-<script src="js/config.js"></script>
-<script src="js/api.js"></script>
-<script src="js/app.js"></script>
-
-<script>
-
-// =============================================
-// GLOBAL VARIABLES
-// =============================================
-
-let jobs = [];
-
-let filteredJobs = [];
-
-let currentPage = 1;
-
-const JOBS_PER_PAGE = 20;
-
-// =============================
-// PAGE LOAD
-// =============================
-
-document.addEventListener("DOMContentLoaded", () => {
-
-    loadAvailableJobs();
-
-    document.getElementById("searchBtn").addEventListener("click", filterJobs);
-
-    document.getElementById("resetBtn").addEventListener("click", resetFilters);
-
-    document.getElementById("searchTitle").addEventListener("keyup", filterJobs);
-
-    document.getElementById("searchLocation").addEventListener("keyup", filterJobs);
-
-    document.getElementById("searchType").addEventListener("change", filterJobs);
-
-});
-
-// =============================
-// LOAD JOBS
-// =============================
-
-async function loadAvailableJobs() {
-
-    try {
-
-        const response = await API.getAvailableJobs();
-
-        document.getElementById("loadingJobs").style.display = "none";
-
-        if (response.success) {
-
-            jobs = response.jobs || [];
-
-filteredJobs = [...jobs];
-
-currentPage = 1;
-
-console.log("Jobs Received :", jobs);
-console.log("Jobs Length :", jobs.length);
-console.log(jobs);
-
-renderJobs(filteredJobs);
-        } else {
-
-            showEmpty();
-
-            console.log(response.message);
-
-        }
-
-    }
-
-    catch (err) {
-
-        console.log(err);
-
-        document.getElementById("loadingJobs").style.display = "none";
-
-        showEmpty();
-
-    }
-
-}
-
-// =============================
-// RENDER JOBS
-// =============================
-
-function renderJobs(jobList) {
-
-    filteredJobs = jobList;
-
-    const container =
-        document.getElementById("jobsContainer");
-
-    const noJobs =
-        document.getElementById("noJobs");
-
-    container.innerHTML = "";
-
-    if (jobList.length === 0) {
-
-        container.style.display = "none";
-
-        noJobs.style.display = "block";
-
-        document.getElementById("pagination").innerHTML = "";
-
-        return;
-
-    }
-
-    container.style.display = "grid";
-
-    noJobs.style.display = "none";
-
-    const start =
-        (currentPage - 1) * JOBS_PER_PAGE;
-
-    const end =
-        start + JOBS_PER_PAGE;
-
-    const jobsToShow =
-        jobList.slice(start, end);
-
-    jobsToShow.forEach(job => {
-
-        container.innerHTML += createJobCard(job);
-
-    });
-
-    renderPagination();
-
-}
-
-    // =============================
-// RENDER PAGINATION
-// =============================
-
-function renderPagination() {
-
-    const pagination =
-        document.getElementById("pagination");
-
-    pagination.innerHTML = "";
-
-    const totalPages =
-        Math.ceil(filteredJobs.length / JOBS_PER_PAGE);
-
-    if (totalPages <= 1) return;
-
-    // -------------------------
-    // PREVIOUS BUTTON
-    // -------------------------
-
-    pagination.innerHTML += `
-
-<button
-class="page-btn ${currentPage===1 ? 'disabled' : ''}"
-onclick="changePage(${currentPage-1})"
-${currentPage===1 ? 'disabled' : ''}>
-
-<i class="fa-solid fa-angle-left"></i>
-
-Previous
-
-</button>
-
-`;
-
-    // -------------------------
-    // PAGE NUMBERS
-    // -------------------------
-
-    for(let i=1;i<=totalPages;i++){
-
-        pagination.innerHTML += `
-
-<button
-class="page-btn ${currentPage===i ? 'active' : ''}"
-onclick="changePage(${i})">
-
-${i}
-
-</button>
-
-`;
-
-    }
-
-    // -------------------------
-    // NEXT BUTTON
-    // -------------------------
-
-    pagination.innerHTML += `
-
-<button
-class="page-btn ${currentPage===totalPages ? 'disabled' : ''}"
-onclick="changePage(${currentPage+1})"
-${currentPage===totalPages ? 'disabled' : ''}>
-
-Next
-
-<i class="fa-solid fa-angle-right"></i>
-
-</button>
-
-`;
-
-}
-
-    // =============================
-// CHANGE PAGE
-// =============================
-
-function changePage(page){
-
-    const totalPages =
-        Math.ceil(filteredJobs.length / JOBS_PER_PAGE);
-
-    if(page<1) return;
-
-    if(page>totalPages) return;
-
-    currentPage = page;
-
-    renderJobs(filteredJobs);
-
-    window.scrollTo({
-
-        top:650,
-
-        behavior:"smooth"
-
-    });
-
-}
-    
-// =============================
-// JOB CARD
-// =============================
-
-function createJobCard(job){
-
-return `
-
-<div class="job-card">
-
-<div class="job-top">
-
-<div>
-
-<span class="badge">
-
-${job.jobType}
-
-</span>
-
-<h3>
-
-${job.jobTitle}
-
-</h3>
-
-<p class="company">
-
-<i class="fa-solid fa-building"></i>
-
-${job.companyName || "Confidential Employer"}
-
-</p>
-
-</div>
-
-<a
-
-href="job-details.html?id=${job.jobID}"
-
-class="btn btn-primary btn-sm">
-
-View Details
-
-</a>
-
-</div>
-
-
-<div class="job-middle">
-
-<div>
-
-<i class="fa-solid fa-location-dot"></i>
-
-${job.city}, ${job.state}
-
-</div>
-
-<div>
-
-<i class="fa-solid fa-indian-rupee-sign"></i>
-
-₹${job.salaryMin} - ₹${job.salaryMax}
-
-</div>
-
-<div>
-
-<i class="fa-solid fa-user-graduate"></i>
-
-${job.qualification}
-
-</div>
-
-<div>
-
-<i class="fa-solid fa-briefcase"></i>
-
-${job.experience}
-
-</div>
-
-</div>
-
-</div>
-
-`;
-
-}
-// =============================
-// FILTER
-// =============================
-
-function filterJobs() {
-
-    const title =
-        document.getElementById("searchTitle")
-        .value
-        .toLowerCase();
-
-    const location =
-        document.getElementById("searchLocation")
-        .value
-        .toLowerCase();
-
-    const type =
-        document.getElementById("searchType")
-        .value;
-
-    filteredJobs = jobs.filter(job => {
-
-        const t =
-            job.jobTitle
-            .toLowerCase()
-            .includes(title);
-
-        const l =
-            (job.city + " " + job.state)
-            .toLowerCase()
-            .includes(location);
-
-        const ty =
-            type === "" ||
-            job.jobType === type;
-
-        return t && l && ty;
-
-    });
-
-    // Reset to first page after search
-    currentPage = 1;
-
-    renderJobs(filteredJobs);
-
-}
-// =============================
-// RESET
-// =============================
-
-function resetFilters() {
-
-    document.getElementById("searchTitle").value = "";
-
-    document.getElementById("searchLocation").value = "";
-
-    document.getElementById("searchType").value = "";
-
-    filteredJobs = [...jobs];
-
-    currentPage = 1;
-
-    renderJobs(filteredJobs);
-
-}
-    
-// =============================
-// EMPTY
-// =============================
-
-function showEmpty() {
-
-    document.getElementById("jobsContainer").style.display = "none";
-
-    document.getElementById("noJobs").style.display = "block";
-
-}
-
-</script>
+  <script src="js/pages/jobs.js"></script>
 
 </body>
 
