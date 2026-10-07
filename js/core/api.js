@@ -2,7 +2,7 @@
 
 /*
  * UCPP V2 - Core API Client
- * GET + POST + Jobs + Candidate Auth + Session + Dashboard
+ * Public Jobs + Candidate Auth + Session + Dashboard + Complete Profile
  */
 (function(){
   if(!window.UCPP_CONFIG){
@@ -44,7 +44,10 @@
 
   async function performGetRequest(requestURL){
     const controller=new AbortController();
-    const timeout=setTimeout(()=>controller.abort(),CONFIG.API_TIMEOUT||30000);
+    const timeout=setTimeout(
+      ()=>controller.abort(),
+      CONFIG.API_TIMEOUT||30000
+    );
 
     try{
       const response=await fetch(requestURL,{
@@ -55,31 +58,44 @@
       });
 
       if(!response.ok){
-        throw new Error('Server returned HTTP '+response.status);
+        throw new Error(
+          'Server returned HTTP '+response.status
+        );
       }
 
       const result=await response.json();
 
       if(!result||result.success!==true){
-        throw new Error(result?.message||'API request failed.');
+        throw new Error(
+          result?.message||
+          'API request failed.'
+        );
       }
 
       return result;
+
     }catch(error){
       if(error.name==='AbortError'){
-        throw new Error('Request timed out. Please try again.');
+        throw new Error(
+          'Request timed out. Please try again.'
+        );
       }
+
       throw error;
+
     }finally{
       clearTimeout(timeout);
     }
   }
 
   async function post(action,data={}){
-    const cleanAction=String(action||'').trim();
+    const cleanAction=
+      String(action||'').trim();
 
     if(!cleanAction){
-      throw new Error('API action is required.');
+      throw new Error(
+        'API action is required.'
+      );
     }
 
     return performPostRequest({
@@ -90,222 +106,667 @@
 
   async function performPostRequest(payload){
     const controller=new AbortController();
-    const timeout=setTimeout(()=>controller.abort(),CONFIG.API_TIMEOUT||30000);
+    const timeout=setTimeout(
+      ()=>controller.abort(),
+      CONFIG.API_TIMEOUT||30000
+    );
 
     try{
-      const response=await fetch(CONFIG.API_URL,{
-        method:'POST',
-        headers:{
-          'Content-Type':'text/plain;charset=utf-8'
-        },
-        body:JSON.stringify(payload),
-        cache:'no-store',
-        redirect:'follow',
-        signal:controller.signal
-      });
+      const response=await fetch(
+        CONFIG.API_URL,
+        {
+          method:'POST',
+          headers:{
+            'Content-Type':
+              'text/plain;charset=utf-8'
+          },
+          body:JSON.stringify(payload),
+          cache:'no-store',
+          redirect:'follow',
+          signal:controller.signal
+        }
+      );
 
       if(!response.ok){
-        throw new Error('Server returned HTTP '+response.status);
+        throw new Error(
+          'Server returned HTTP '+
+          response.status
+        );
       }
 
-      const result=await response.json();
+      const result=
+        await response.json();
 
-      if(!result||typeof result.success!=='boolean'){
-        throw new Error('Invalid response from server.');
+      if(
+        !result||
+        typeof result.success!=='boolean'
+      ){
+        throw new Error(
+          'Invalid response from server.'
+        );
       }
 
       return result;
+
     }catch(error){
       if(error.name==='AbortError'){
-        throw new Error('Request timed out. Please try again.');
+        throw new Error(
+          'Request timed out. Please try again.'
+        );
       }
+
       throw error;
+
     }finally{
       clearTimeout(timeout);
     }
   }
 
+  /*
+   * =======================================================
+   * COMMON SESSION TOKEN VALIDATION
+   * =======================================================
+   */
+
+  function cleanSessionToken(sessionToken){
+    return String(
+      sessionToken||''
+    ).trim();
+  }
+
+  function invalidSessionResponse(){
+    return Promise.resolve({
+      success:false,
+      code:'INVALID_SESSION',
+      message:'Session is not available.',
+      data:null
+    });
+  }
+
+  /*
+   * =======================================================
+   * HEALTH
+   * =======================================================
+   */
+
   function health(){
     return get('health');
   }
 
+  /*
+   * =======================================================
+   * PUBLIC JOBS
+   * =======================================================
+   */
+
   function getJobs(options={}){
-    return get('getPublicJobs',{
-      page:options.page||1,
-      limit:options.limit||CONFIG.PAGINATION.JOBS_PER_PAGE,
-      search:options.search||'',
-      city:options.city||'',
-      category:options.category||'',
-      jobType:options.jobType||'',
-      workMode:options.workMode||''
-    });
+    return get(
+      'getPublicJobs',
+      {
+        page:
+          options.page||1,
+
+        limit:
+          options.limit||
+          CONFIG.PAGINATION.JOBS_PER_PAGE,
+
+        search:
+          options.search||'',
+
+        city:
+          options.city||'',
+
+        category:
+          options.category||'',
+
+        jobType:
+          options.jobType||'',
+
+        workMode:
+          options.workMode||''
+      }
+    );
   }
 
   function getJob(jobId){
-    const id=String(jobId||'').trim();
+    const id=
+      String(jobId||'').trim();
 
     if(!id){
       return Promise.reject(
-        new Error('Job ID is required.')
+        new Error(
+          'Job ID is required.'
+        )
       );
     }
 
-    return get('getPublicJob',{id:id});
+    return get(
+      'getPublicJob',
+      {
+        id:id
+      }
+    );
   }
 
   /*
-   * Candidate Login
+   * =======================================================
+   * CANDIDATE LOGIN
+   * =======================================================
    */
-  function candidateLogin(email,password){
-    const cleanEmail=String(email||'').trim().toLowerCase();
-    const cleanPassword=String(password||'');
 
-    if(!cleanEmail||!cleanPassword){
+  function candidateLogin(email,password){
+    const cleanEmail=
+      String(email||'')
+        .trim()
+        .toLowerCase();
+
+    const cleanPassword=
+      String(password||'');
+
+    if(
+      !cleanEmail||
+      !cleanPassword
+    ){
       return Promise.resolve({
         success:false,
         code:'INVALID_LOGIN',
-        message:'Email and password are required.',
+        message:
+          'Email and password are required.',
         data:null
       });
     }
 
-    return post('candidateLogin',{
-      email:cleanEmail,
-      password:cleanPassword
-    });
+    return post(
+      'candidateLogin',
+      {
+        email:cleanEmail,
+        password:cleanPassword
+      }
+    );
   }
 
   /*
-   * Validate Candidate Session
+   * =======================================================
+   * CANDIDATE SESSION
+   * =======================================================
    */
+
   function validateCandidateSession(sessionToken){
-    const token=String(sessionToken||'').trim();
+    const token=
+      cleanSessionToken(
+        sessionToken
+      );
 
     if(!token){
-      return Promise.resolve({
-        success:false,
-        code:'INVALID_SESSION',
-        message:'Session is not available.',
-        data:null
-      });
+      return invalidSessionResponse();
     }
 
-    return post('validateCandidateSession',{
-      sessionToken:token
-    });
+    return post(
+      'validateCandidateSession',
+      {
+        sessionToken:token
+      }
+    );
   }
 
-  /*
-   * Candidate Logout
-   */
   function logoutCandidate(sessionToken){
-    const token=String(sessionToken||'').trim();
+    const token=
+      cleanSessionToken(
+        sessionToken
+      );
 
     if(!token){
       return Promise.resolve({
         success:true,
         code:'LOGOUT_SUCCESS',
-        message:'Logged out successfully.',
+        message:
+          'Logged out successfully.',
         data:null
       });
     }
 
-    return post('logoutCandidate',{
-      sessionToken:token
-    });
+    return post(
+      'logoutCandidate',
+      {
+        sessionToken:token
+      }
+    );
   }
 
   /*
-   * Candidate Dashboard
+   * =======================================================
+   * CANDIDATE DASHBOARD
+   * =======================================================
    *
-   * Candidate ID is NOT sent from frontend.
-   * Backend derives Candidate_ID from validated session.
+   * Candidate ID is never sent from frontend.
    */
+
   function getCandidateDashboard(sessionToken){
-    const token=String(sessionToken||'').trim();
+    const token=
+      cleanSessionToken(
+        sessionToken
+      );
 
     if(!token){
+      return invalidSessionResponse();
+    }
+
+    return post(
+      'getCandidateDashboard',
+      {
+        sessionToken:token
+      }
+    );
+  }
+
+  /*
+   * =======================================================
+   * CANDIDATE PROFILE - READ
+   * =======================================================
+   */
+
+  function getCandidateProfile(sessionToken){
+    const token=
+      cleanSessionToken(
+        sessionToken
+      );
+
+    if(!token){
+      return invalidSessionResponse();
+    }
+
+    return post(
+      'getCandidateProfile',
+      {
+        sessionToken:token
+      }
+    );
+  }
+
+  /*
+   * =======================================================
+   * CANDIDATE PROFILE - BASIC DETAILS
+   * =======================================================
+   *
+   * candidateId is deliberately NOT accepted.
+   *
+   * Backend derives Candidate_ID from session.
+   */
+
+  function updateCandidateProfile(
+    sessionToken,
+    profile={}
+  ){
+    const token=
+      cleanSessionToken(
+        sessionToken
+      );
+
+    if(!token){
+      return invalidSessionResponse();
+    }
+
+    if(
+      !profile||
+      typeof profile!=='object'||
+      Array.isArray(profile)
+    ){
       return Promise.resolve({
         success:false,
-        code:'INVALID_SESSION',
-        message:'Session is not available.',
+        code:'INVALID_PROFILE_DATA',
+        message:'Invalid profile data.',
         data:null
       });
     }
 
-    return post('getCandidateDashboard',{
-      sessionToken:token
-    });
+    return post(
+      'updateCandidateProfile',
+      {
+        sessionToken:token,
+        profile:profile
+      }
+    );
   }
 
   /*
-   * Forgot Password
+   * =======================================================
+   * CANDIDATE EXPERIENCE
+   * =======================================================
+   *
+   * Same method handles Add + Edit.
+   *
+   * For editing, experience object can contain
+   * experienceId.
    */
+
+  function saveCandidateExperience(
+    sessionToken,
+    experience={}
+  ){
+    const token=
+      cleanSessionToken(
+        sessionToken
+      );
+
+    if(!token){
+      return invalidSessionResponse();
+    }
+
+    if(
+      !experience||
+      typeof experience!=='object'||
+      Array.isArray(experience)
+    ){
+      return Promise.resolve({
+        success:false,
+        code:'INVALID_EXPERIENCE',
+        message:
+          'Invalid experience data.',
+        data:null
+      });
+    }
+
+    return post(
+      'saveCandidateExperience',
+      {
+        sessionToken:token,
+        experience:experience
+      }
+    );
+  }
+
+  function deleteCandidateExperience(
+    sessionToken,
+    experienceId
+  ){
+    const token=
+      cleanSessionToken(
+        sessionToken
+      );
+
+    const id=
+      String(
+        experienceId||''
+      ).trim();
+
+    if(!token){
+      return invalidSessionResponse();
+    }
+
+    if(!id){
+      return Promise.resolve({
+        success:false,
+        code:'INVALID_EXPERIENCE_ID',
+        message:
+          'Experience record is required.',
+        data:null
+      });
+    }
+
+    return post(
+      'deleteCandidateExperience',
+      {
+        sessionToken:token,
+        experienceId:id
+      }
+    );
+  }
+
+  /*
+   * =======================================================
+   * CANDIDATE CERTIFICATIONS
+   * =======================================================
+   *
+   * Same save method handles Add + Edit.
+   */
+
+  function saveCandidateCertification(
+    sessionToken,
+    certification={}
+  ){
+    const token=
+      cleanSessionToken(
+        sessionToken
+      );
+
+    if(!token){
+      return invalidSessionResponse();
+    }
+
+    if(
+      !certification||
+      typeof certification!=='object'||
+      Array.isArray(certification)
+    ){
+      return Promise.resolve({
+        success:false,
+        code:'INVALID_CERTIFICATION',
+        message:
+          'Invalid certification data.',
+        data:null
+      });
+    }
+
+    return post(
+      'saveCandidateCertification',
+      {
+        sessionToken:token,
+        certification:certification
+      }
+    );
+  }
+
+  function deleteCandidateCertification(
+    sessionToken,
+    certificationId
+  ){
+    const token=
+      cleanSessionToken(
+        sessionToken
+      );
+
+    const id=
+      String(
+        certificationId||''
+      ).trim();
+
+    if(!token){
+      return invalidSessionResponse();
+    }
+
+    if(!id){
+      return Promise.resolve({
+        success:false,
+        code:'INVALID_CERTIFICATION_ID',
+        message:
+          'Certification record is required.',
+        data:null
+      });
+    }
+
+    return post(
+      'deleteCandidateCertification',
+      {
+        sessionToken:token,
+        certificationId:id
+      }
+    );
+  }
+
+  /*
+   * =======================================================
+   * CANDIDATE SOCIAL LINKS
+   * =======================================================
+   */
+
+  function saveCandidateSocialLinks(
+    sessionToken,
+    socialLinks={}
+  ){
+    const token=
+      cleanSessionToken(
+        sessionToken
+      );
+
+    if(!token){
+      return invalidSessionResponse();
+    }
+
+    if(
+      !socialLinks||
+      typeof socialLinks!=='object'||
+      Array.isArray(socialLinks)
+    ){
+      return Promise.resolve({
+        success:false,
+        code:'INVALID_SOCIAL_LINKS',
+        message:
+          'Invalid social links.',
+        data:null
+      });
+    }
+
+    return post(
+      'saveCandidateSocialLinks',
+      {
+        sessionToken:token,
+        socialLinks:socialLinks
+      }
+    );
+  }
+
+  /*
+   * =======================================================
+   * CANDIDATE PASSWORD RESET
+   * =======================================================
+   */
+
   function requestCandidatePasswordReset(email){
-    const cleanEmail=String(email||'').trim().toLowerCase();
+    const cleanEmail=
+      String(email||'')
+        .trim()
+        .toLowerCase();
 
     if(!cleanEmail){
       return Promise.resolve({
         success:false,
         code:'EMAIL_REQUIRED',
-        message:'Email address is required.',
+        message:
+          'Email address is required.',
         data:null
       });
     }
 
-    return post('requestCandidatePasswordReset',{
-      email:cleanEmail
-    });
+    return post(
+      'requestCandidatePasswordReset',
+      {
+        email:cleanEmail
+      }
+    );
   }
 
-  function verifyCandidatePasswordResetOtp(email,otp){
-    const cleanEmail=String(email||'').trim().toLowerCase();
-    const cleanOtp=String(otp||'').trim();
+  function verifyCandidatePasswordResetOtp(
+    email,
+    otp
+  ){
+    const cleanEmail=
+      String(email||'')
+        .trim()
+        .toLowerCase();
 
-    if(!cleanEmail||!cleanOtp){
+    const cleanOtp=
+      String(otp||'').trim();
+
+    if(
+      !cleanEmail||
+      !cleanOtp
+    ){
       return Promise.resolve({
         success:false,
         code:'INVALID_REQUEST',
-        message:'Email and verification code are required.',
+        message:
+          'Email and verification code are required.',
         data:null
       });
     }
 
-    return post('verifyCandidatePasswordResetOtp',{
-      email:cleanEmail,
-      otp:cleanOtp
-    });
+    return post(
+      'verifyCandidatePasswordResetOtp',
+      {
+        email:cleanEmail,
+        otp:cleanOtp
+      }
+    );
   }
 
-  function resetCandidatePassword(resetToken,newPassword){
-    const cleanToken=String(resetToken||'').trim();
-    const password=String(newPassword||'');
+  function resetCandidatePassword(
+    resetToken,
+    newPassword
+  ){
+    const cleanToken=
+      String(
+        resetToken||''
+      ).trim();
 
-    if(!cleanToken||!password){
+    const password=
+      String(
+        newPassword||''
+      );
+
+    if(
+      !cleanToken||
+      !password
+    ){
       return Promise.resolve({
         success:false,
         code:'INVALID_REQUEST',
-        message:'Invalid password reset request.',
+        message:
+          'Invalid password reset request.',
         data:null
       });
     }
 
-    return post('resetCandidatePassword',{
-      resetToken:cleanToken,
-      newPassword:password
-    });
+    return post(
+      'resetCandidatePassword',
+      {
+        resetToken:cleanToken,
+        newPassword:password
+      }
+    );
   }
+
+  /*
+   * =======================================================
+   * PUBLIC API
+   * =======================================================
+   */
 
   window.UCPP_API=Object.freeze({
     get,
     post,
+
     health,
+
     getJobs,
     getJob,
+
     candidateLogin,
     validateCandidateSession,
     logoutCandidate,
+
     getCandidateDashboard,
+
+    getCandidateProfile,
+    updateCandidateProfile,
+
+    saveCandidateExperience,
+    deleteCandidateExperience,
+
+    saveCandidateCertification,
+    deleteCandidateCertification,
+
+    saveCandidateSocialLinks,
+
     requestCandidatePasswordReset,
     verifyCandidatePasswordResetOtp,
     resetCandidatePassword
