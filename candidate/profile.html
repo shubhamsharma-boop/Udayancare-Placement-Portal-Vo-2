@@ -23,10 +23,10 @@
 <section class="profile-hero">
 <div class="profile-container">
 <div class="profile-hero-card">
+
 <div class="profile-avatar-wrap">
 <div class="profile-avatar" id="profileAvatar">
 <span id="profileInitials">--</span>
-<img id="profilePhoto" alt="Candidate profile photo" hidden>
 </div>
 </div>
 
@@ -46,11 +46,14 @@
 <span>Profile Completion</span>
 <strong id="completionPercent">0%</strong>
 </div>
+
 <div class="completion-track">
 <div class="completion-bar" id="completionBar"></div>
 </div>
+
 <p id="completionText">Complete your profile to improve visibility.</p>
 </div>
+
 </div>
 </div>
 </section>
@@ -61,6 +64,7 @@
 <div id="profileAlert" class="profile-alert" hidden></div>
 
 <div id="profileSkeleton" class="profile-skeleton">
+
 <div class="skeleton-card">
 <div class="skeleton-line skeleton-title"></div>
 <div class="skeleton-grid">
@@ -83,6 +87,7 @@
 <div class="skeleton-line skeleton-title"></div>
 <div class="skeleton-line"></div>
 </div>
+
 </div>
 
 <div id="profileMain" class="profile-main" hidden>
@@ -210,12 +215,6 @@
 <div class="character-count"><span id="aboutCount">0</span>/2000</div>
 </div>
 
-<div class="form-group form-group-full">
-<label for="profilePhotoUrl">Profile Photo URL</label>
-<input type="url" id="profilePhotoUrl" name="profilePhotoUrl" maxlength="1000" placeholder="https://...">
-<small>Optional. Add a publicly accessible profile photo URL.</small>
-</div>
-
 </div>
 
 <div class="form-actions">
@@ -226,6 +225,7 @@
 </div>
 
 </form>
+
 </div>
 </section>
 
@@ -499,10 +499,12 @@
 <div class="confirm-icon">!</div>
 <h2 id="confirmTitle">Delete record?</h2>
 <p id="confirmMessage">This action cannot be undone.</p>
+
 <div class="confirm-actions">
 <button type="button" class="btn-light" id="cancelConfirmBtn">Cancel</button>
 <button type="button" class="btn-danger" id="confirmDeleteBtn">Delete</button>
 </div>
+
 </div>
 </div>
 
@@ -511,10 +513,8 @@
 <script src="../js/core/config.js"></script>
 <script src="../js/core/api.js"></script>
 <script src="../js/core/session.js"></script>
-
 <script src="../js/common/header.js"></script>
 <script src="../js/common/footer.js"></script>
-
 <script src="../js/candidate/profile.js"></script>
 
 </body>
