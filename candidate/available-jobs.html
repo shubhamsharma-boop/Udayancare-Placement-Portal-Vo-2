@@ -5,16 +5,21 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta name="description" content="Explore available job opportunities on Udayan Care Placement Portal.">
 <title>Available Jobs | Udayan Care Placement Portal</title>
-<link rel="stylesheet" href="../css/common/reset.css">
 <link rel="stylesheet" href="../css/common/variables.css">
-<link rel="stylesheet" href="../css/common/common.css">
-<link rel="stylesheet" href="../css/common/header.css">
-<link rel="stylesheet" href="../css/common/footer.css">
+<link rel="stylesheet" href="../css/common/reset.css">
+<link rel="stylesheet" href="../css/common/base.css">
+<link rel="stylesheet" href="../css/common/layout.css">
+<link rel="stylesheet" href="../css/common/components.css">
+<link rel="stylesheet" href="../css/common/utilities.css">
+<link rel="stylesheet" href="../css/common/shell.css">
 <link rel="stylesheet" href="../css/candidate/available-jobs.css">
 </head>
 <body>
+
 <header id="siteHeader"></header>
+
 <main class="jobs-page">
+
 <section class="jobs-hero">
 <div class="jobs-container">
 <div class="jobs-hero-content">
@@ -23,6 +28,7 @@
 <h1>Find Your Next Opportunity</h1>
 <p>Explore available opportunities and apply for jobs that match your skills, qualification and career goals.</p>
 </div>
+
 <div class="jobs-hero-stat">
 <span>Available Jobs</span>
 <strong id="availableJobsCount">--</strong>
@@ -43,6 +49,7 @@
 <input type="search" id="jobSearch" placeholder="Search job title, company or skill..." autocomplete="off" aria-label="Search jobs">
 <button type="button" id="clearSearch" class="clear-search" aria-label="Clear search" hidden>×</button>
 </div>
+
 <button type="button" id="filterToggle" class="filter-toggle">
 <span>Filters</span>
 <span id="activeFilterCount" class="filter-count" hidden>0</span>
@@ -50,6 +57,7 @@
 </div>
 
 <div class="jobs-layout">
+
 <aside class="jobs-filters" id="jobsFilters">
 <div class="filter-header">
 <div>
@@ -104,6 +112,7 @@
 <h2>Available Jobs</h2>
 <p id="resultsSummary">Loading opportunities...</p>
 </div>
+
 <div class="jobs-sort">
 <label for="sortJobs">Sort</label>
 <select id="sortJobs">
@@ -124,6 +133,7 @@
 <div class="skeleton skeleton-tags"></div>
 <div class="skeleton skeleton-button"></div>
 </article>
+
 <article class="job-skeleton-card">
 <div class="skeleton skeleton-company"></div>
 <div class="skeleton skeleton-title"></div>
@@ -132,6 +142,7 @@
 <div class="skeleton skeleton-tags"></div>
 <div class="skeleton skeleton-button"></div>
 </article>
+
 <article class="job-skeleton-card">
 <div class="skeleton skeleton-company"></div>
 <div class="skeleton skeleton-title"></div>
@@ -140,6 +151,7 @@
 <div class="skeleton skeleton-tags"></div>
 <div class="skeleton skeleton-button"></div>
 </article>
+
 <article class="job-skeleton-card">
 <div class="skeleton skeleton-company"></div>
 <div class="skeleton skeleton-title"></div>
@@ -176,6 +188,7 @@
 </div>
 </div>
 </section>
+
 </main>
 
 <div id="filterBackdrop" class="filter-backdrop" hidden></div>
@@ -188,5 +201,6 @@
 <script src="../js/common/header.js"></script>
 <script src="../js/common/footer.js"></script>
 <script src="../js/candidate/available-jobs.js"></script>
+
 </body>
 </html>
