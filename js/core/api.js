@@ -1,31 +1,54 @@
 'use strict';
 
 /*
+ * =========================================================
  * UCPP V2
- * Central API Client
+ * Core API Client
+ * =========================================================
  */
 
 (function () {
 
   if (!window.UCPP_CONFIG) {
+
     console.error(
-      'UCPP_CONFIG is not available. Load config.js before api.js.'
+      'UCPP_CONFIG is not available.'
     );
+
     return;
+
   }
 
 
-  const activeRequests = new Map();
+  const CONFIG =
+    window.UCPP_CONFIG;
 
 
   /*
-   * Build API URL
+   * Prevent duplicate identical
+   * API requests running together.
    */
-  function buildURL(action, params = {}) {
+  const activeRequests =
+    new Map();
 
-    const url = new URL(
-      window.UCPP_CONFIG.API_URL
-    );
+
+
+  /*
+   * =======================================================
+   * BUILD API URL
+   * =======================================================
+   */
+
+  function buildURL(
+    action,
+    params = {}
+  ) {
+
+    const url =
+      new URL(
+        CONFIG.API_URL
+      );
+
 
     url.searchParams.set(
       'action',
@@ -33,14 +56,20 @@
     );
 
 
-    Object.entries(params).forEach(
-      ([key, value]) => {
+    Object.entries(params)
+      .forEach(
+        ([key, value]) => {
 
-        if (
-          value !== undefined &&
-          value !== null &&
-          String(value).trim() !== ''
-        ) {
+          if (
+            value === undefined ||
+            value === null ||
+            value === ''
+          ) {
+
+            return;
+
+          }
+
 
           url.searchParams.set(
             key,
@@ -48,9 +77,7 @@
           );
 
         }
-
-      }
-    );
+      );
 
 
     return url.toString();
@@ -58,80 +85,123 @@
   }
 
 
+
   /*
-   * Create unique request key
-   *
-   * Prevents duplicate API requests
-   * for the same action + parameters.
+   * =======================================================
+   * GET REQUEST
+   * =======================================================
    */
-  function createRequestKey(
+
+  async function get(
     action,
     params = {}
   ) {
 
-    const sortedParams = {};
-
-    Object
-      .keys(params)
-      .sort()
-      .forEach(key => {
-
-        sortedParams[key] =
-          params[key];
-
-      });
+    const requestURL =
+      buildURL(
+        action,
+        params
+      );
 
 
-    return (
-      action +
-      ':' +
-      JSON.stringify(sortedParams)
+    /*
+     * If identical request is
+     * already running, reuse it.
+     */
+    if (
+      activeRequests.has(
+        requestURL
+      )
+    ) {
+
+      return activeRequests.get(
+        requestURL
+      );
+
+    }
+
+
+    const request =
+      performGetRequest(
+        requestURL
+      );
+
+
+    activeRequests.set(
+      requestURL,
+      request
     );
+
+
+    try {
+
+      return await request;
+
+    }
+
+    finally {
+
+      activeRequests.delete(
+        requestURL
+      );
+
+    }
 
   }
 
 
+
   /*
-   * Perform GET request
+   * =======================================================
+   * PERFORM GET
+   * =======================================================
    */
-  async function performGet(
-    action,
-    params = {}
+
+  async function performGetRequest(
+    requestURL
   ) {
 
     const controller =
       new AbortController();
 
 
-    const timeout = setTimeout(
-      () => controller.abort(),
-      window.UCPP_CONFIG.API_TIMEOUT
-    );
+    const timeout =
+      setTimeout(
+        function () {
+
+          controller.abort();
+
+        },
+
+        CONFIG.API_TIMEOUT || 30000
+      );
 
 
     try {
 
-      const response = await fetch(
-        buildURL(action, params),
-        {
-          method: 'GET',
+      const response =
+        await fetch(
+          requestURL,
+          {
 
-          signal:
-            controller.signal,
+            method: 'GET',
 
-          cache:
-            'no-store',
+            cache: 'no-store',
 
-          redirect:
-            'follow'
-        }
-      );
+            redirect: 'follow',
+
+            signal:
+              controller.signal
+
+          }
+        );
 
 
       if (!response.ok) {
 
         throw new Error(
-          `HTTP Error ${response.status}`
+          'Server returned HTTP ' +
+          response.status
         );
 
       }
@@ -172,83 +242,14 @@
       }
 
 
-      console.error(
-        'UCPP API Error:',
-        action,
-        error
-      );
-
-
       throw error;
 
     }
 
     finally {
 
-      clearTimeout(timeout);
-
-    }
-
-  }
-
-
-  /*
-   * Deduplicated GET
-   */
-  async function get(
-    action,
-    params = {}
-  ) {
-
-    const requestKey =
-      createRequestKey(
-        action,
-        params
-      );
-
-
-    /*
-     * Same request already running?
-     *
-     * Return existing Promise instead
-     * of hitting Apps Script again.
-     */
-    if (
-      activeRequests.has(
-        requestKey
-      )
-    ) {
-
-      return activeRequests.get(
-        requestKey
-      );
-
-    }
-
-
-    const requestPromise =
-      performGet(
-        action,
-        params
-      );
-
-
-    activeRequests.set(
-      requestKey,
-      requestPromise
-    );
-
-
-    try {
-
-      return await requestPromise;
-
-    }
-
-    finally {
-
-      activeRequests.delete(
-        requestKey
+      clearTimeout(
+        timeout
       );
 
     }
@@ -256,9 +257,13 @@
   }
 
 
+
   /*
-   * Backend health
+   * =======================================================
+   * HEALTH
+   * =======================================================
    */
+
   function health() {
 
     return get(
@@ -268,9 +273,13 @@
   }
 
 
+
   /*
-   * Public Jobs
+   * =======================================================
+   * PUBLIC JOBS
+   * =======================================================
    */
+
   function getJobs(
     options = {}
   ) {
@@ -284,9 +293,7 @@
 
         limit:
           options.limit ||
-          window.UCPP_CONFIG
-            .PAGINATION
-            .JOBS_PER_PAGE,
+          CONFIG.PAGINATION.JOBS_PER_PAGE,
 
         search:
           options.search || '',
@@ -309,9 +316,51 @@
   }
 
 
+
   /*
-   * Public API
+   * =======================================================
+   * SINGLE PUBLIC JOB
+   * =======================================================
    */
+
+  function getJob(
+    jobId
+  ) {
+
+    const id =
+      String(
+        jobId || ''
+      ).trim();
+
+
+    if (!id) {
+
+      return Promise.reject(
+        new Error(
+          'Job ID is required.'
+        )
+      );
+
+    }
+
+
+    return get(
+      'getPublicJob',
+      {
+        id: id
+      }
+    );
+
+  }
+
+
+
+  /*
+   * =======================================================
+   * PUBLIC API
+   * =======================================================
+   */
+
   window.UCPP_API =
     Object.freeze({
 
@@ -319,7 +368,9 @@
 
       health,
 
-      getJobs
+      getJobs,
+
+      getJob
 
     });
 
