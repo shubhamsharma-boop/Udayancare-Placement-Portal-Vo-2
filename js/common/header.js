@@ -3,680 +3,592 @@
 /*
  * =========================================================
  * UCPP V2
- * Global Role-Aware Header / Navigation
- * =========================================================
- *
- * Current:
- * - Public navigation works immediately.
- *
- * Future:
- * - Candidate / Employer / Admin navigation is already
- *   structurally supported.
- * - Actual role will later come from secure V2 session.
- *
- * IMPORTANT:
- * - No fake authentication is created here.
- * - Navbar does not decide whether a user is authenticated.
+ * Global Role-Aware Header
  * =========================================================
  */
 
 (function () {
 
-  const headerMount =
+  const headerTarget =
     document.getElementById('siteHeader');
 
-
-  if (!headerMount) {
-
-    console.warn(
-      'UCPP Header: #siteHeader element not found.'
-    );
-
+  if (!headerTarget) {
     return;
-
   }
 
 
-
   /*
-   * =======================================================
-   * PATH HELPERS
-   * =======================================================
+   * PATH
    */
 
-  function getPathInfo() {
-
-    const pathname =
-      window.location.pathname
-        .replace(/\\/g, '/');
+  const path =
+    window.location.pathname
+      .replace(/\\/g, '/');
 
 
-    const segments =
-      pathname
-        .split('/')
-        .filter(Boolean);
+  const isNestedPage =
+    path.includes('/candidate/') ||
+    path.includes('/employer/') ||
+    path.includes('/admin/');
 
 
-    const fileName =
-      segments.length
-        ? segments[segments.length - 1]
-        : 'index.html';
+  const root =
+    isNestedPage ? '../' : '';
 
 
-    const parentFolder =
-      segments.length >= 2
-        ? segments[segments.length - 2].toLowerCase()
-        : '';
+  const fileName =
+    path.split('/').pop() ||
+    'index.html';
 
 
-    let area = 'public';
+  const isCandidateArea =
+    path.includes('/candidate/');
 
 
-    if (parentFolder === 'candidate') {
-
-      area = 'candidate';
-
-    } else if (parentFolder === 'employer') {
-
-      area = 'employer';
-
-    } else if (parentFolder === 'admin') {
-
-      area = 'admin';
-
-    }
+  const isEmployerArea =
+    path.includes('/employer/');
 
 
-    return {
-
-      pathname,
-
-      fileName:
-        fileName.toLowerCase(),
-
-      area
-
-    };
-
-  }
-
-
-  const pathInfo =
-    getPathInfo();
-
+  const isAdminArea =
+    path.includes('/admin/');
 
 
   /*
-   * =======================================================
-   * ROOT PATH
-   * =======================================================
+   * SESSION
    *
-   * Public pages:
-   * index.html
-   *
-   * Nested pages:
-   * candidate/login.html
-   *
-   * Therefore nested areas require ../
-   * =======================================================
+   * Later secure auth module will provide this.
+   * No fake authentication is created here.
    */
 
-  function getRootPath() {
-
-    if (
-      pathInfo.area === 'candidate' ||
-      pathInfo.area === 'employer' ||
-      pathInfo.area === 'admin'
-    ) {
-
-      return '../';
-
-    }
+  const session =
+    window.UCPP_SESSION || null;
 
 
-    return '';
+  const isAuthenticated =
+    session &&
+    session.isAuthenticated === true;
 
-  }
 
-
-  const ROOT =
-    getRootPath();
-
+  const role =
+    isAuthenticated
+      ? String(session.role || '')
+          .trim()
+          .toLowerCase()
+      : 'public';
 
 
   /*
-   * =======================================================
-   * AUTH STATE
-   * =======================================================
-   *
-   * For now authentication is NOT implemented.
-   *
-   * Later our secure session module will provide:
-   *
-   * window.UCPP_SESSION = {
-   *   isAuthenticated: true,
-   *   role: 'candidate'
-   * }
-   *
-   * Until then everybody receives public navigation.
-   * =======================================================
-   */
-
-  function getUserState() {
-
-    const session =
-      window.UCPP_SESSION;
-
-
-    if (
-      !session ||
-      session.isAuthenticated !== true
-    ) {
-
-      return {
-        authenticated: false,
-        role: 'public'
-      };
-
-    }
-
-
-    const role =
-      String(
-        session.role || ''
-      )
-        .trim()
-        .toLowerCase();
-
-
-    if (
-      role !== 'candidate' &&
-      role !== 'employer' &&
-      role !== 'admin'
-    ) {
-
-      return {
-        authenticated: false,
-        role: 'public'
-      };
-
-    }
-
-
-    return {
-      authenticated: true,
-      role
-    };
-
-  }
-
-
-
-  /*
-   * =======================================================
-   * NAVIGATION CONFIGURATION
-   * =======================================================
-   */
-
-  function getPublicNavigation() {
-
-    return [
-
-      {
-        label: 'Home',
-        href: ROOT + 'index.html',
-        match: ['index.html']
-      },
-
-      {
-        label: 'Jobs',
-        href: ROOT + 'jobs.html',
-        match: [
-          'jobs.html',
-          'job-details.html'
-        ]
-      },
-
-      {
-        label: 'About',
-        href: ROOT + 'about.html',
-        match: ['about.html']
-      },
-
-      {
-        label: 'Contact',
-        href: ROOT + 'contact.html',
-        match: ['contact.html']
-      }
-
-    ];
-
-  }
-
-
-
-  function getCandidateNavigation() {
-
-    return [
-
-      {
-        label: 'Dashboard',
-        href: ROOT + 'candidate/dashboard.html',
-        match: ['dashboard.html']
-      },
-
-      {
-        label: 'Find Jobs',
-        href: ROOT + 'candidate/available-jobs.html',
-        match: [
-          'available-jobs.html',
-          'job-details.html'
-        ]
-      },
-
-      {
-        label: 'My Applications',
-        href: ROOT + 'candidate/applications.html',
-        match: ['applications.html']
-      },
-
-      {
-        label: 'My Profile',
-        href: ROOT + 'candidate/profile.html',
-        match: ['profile.html']
-      }
-
-    ];
-
-  }
-
-
-
-  function getEmployerNavigation() {
-
-    return [
-
-      {
-        label: 'Dashboard',
-        href: ROOT + 'employer/dashboard.html',
-        match: ['dashboard.html']
-      },
-
-      {
-        label: 'Post Job',
-        href: ROOT + 'employer/post-job.html',
-        match: ['post-job.html']
-      },
-
-      {
-        label: 'Manage Jobs',
-        href: ROOT + 'employer/manage-jobs.html',
-        match: ['manage-jobs.html']
-      },
-
-      {
-        label: 'Applications',
-        href: ROOT + 'employer/applications.html',
-        match: ['applications.html']
-      },
-
-      {
-        label: 'Shortlisted',
-        href: ROOT + 'employer/shortlisted.html',
-        match: ['shortlisted.html']
-      },
-
-      {
-        label: 'Company Profile',
-        href: ROOT + 'employer/company-profile.html',
-        match: ['company-profile.html']
-      }
-
-    ];
-
-  }
-
-
-
-  function getAdminNavigation() {
-
-    return [
-
-      {
-        label: 'Dashboard',
-        href: ROOT + 'admin/dashboard.html',
-        match: ['dashboard.html']
-      },
-
-      {
-        label: 'Candidates',
-        href: ROOT + 'admin/candidates.html',
-        match: ['candidates.html']
-      },
-
-      {
-        label: 'Employers',
-        href: ROOT + 'admin/employers.html',
-        match: ['employers.html']
-      },
-
-      {
-        label: 'Jobs',
-        href: ROOT + 'admin/jobs.html',
-        match: ['jobs.html']
-      },
-
-      {
-        label: 'Applications',
-        href: ROOT + 'admin/applications.html',
-        match: ['applications.html']
-      },
-
-      {
-        label: 'Reports',
-        href: ROOT + 'admin/reports.html',
-        match: ['reports.html']
-      },
-
-      {
-        label: 'Settings',
-        href: ROOT + 'admin/settings.html',
-        match: ['settings.html']
-      }
-
-    ];
-
-  }
-
-
-
-  /*
-   * =======================================================
    * ACTIVE LINK
-   * =======================================================
    */
 
-  function isActive(item) {
+  function active(files) {
 
-    if (!item.match) {
+    return files.includes(fileName)
+      ? ' is-active'
+      : '';
 
-      return false;
+  }
 
+
+  /*
+   * PUBLIC NAV
+   */
+
+  function publicNavigation() {
+
+    return `
+      <div class="ucpp-nav__links">
+
+        <a
+          class="ucpp-nav__link${active(['index.html', ''])}"
+          href="${root}index.html"
+        >
+          <span class="ucpp-nav__icon">⌂</span>
+          <span>Home</span>
+        </a>
+
+        <a
+          class="ucpp-nav__link${active([
+            'jobs.html',
+            'job-details.html'
+          ])}"
+          href="${root}jobs.html"
+        >
+          <span class="ucpp-nav__icon">▣</span>
+          <span>Jobs</span>
+        </a>
+
+        <a
+          class="ucpp-nav__link${active(['about.html'])}"
+          href="${root}about.html"
+        >
+          <span class="ucpp-nav__icon">◎</span>
+          <span>About</span>
+        </a>
+
+        <a
+          class="ucpp-nav__link${active(['contact.html'])}"
+          href="${root}contact.html"
+        >
+          <span class="ucpp-nav__icon">✉</span>
+          <span>Contact</span>
+        </a>
+
+      </div>
+
+
+      <div class="ucpp-header__actions">
+
+        <a
+          class="ucpp-login-button ucpp-login-button--candidate"
+          href="${root}candidate/login.html"
+        >
+          Candidate Login
+        </a>
+
+        <a
+          class="ucpp-login-button ucpp-login-button--employer"
+          href="${root}employer/login.html"
+        >
+          Employer Login
+        </a>
+
+      </div>
+    `;
+
+  }
+
+
+  /*
+   * CANDIDATE NAV
+   */
+
+  function candidateNavigation() {
+
+    return `
+      <div class="ucpp-nav__links">
+
+        <a
+          class="ucpp-nav__link${active(['dashboard.html'])}"
+          href="${root}candidate/dashboard.html"
+        >
+          Dashboard
+        </a>
+
+        <a
+          class="ucpp-nav__link${active([
+            'available-jobs.html',
+            'job-details.html'
+          ])}"
+          href="${root}candidate/available-jobs.html"
+        >
+          Find Jobs
+        </a>
+
+        <a
+          class="ucpp-nav__link${active(['applications.html'])}"
+          href="${root}candidate/applications.html"
+        >
+          My Applications
+        </a>
+
+        <a
+          class="ucpp-nav__link${active(['profile.html'])}"
+          href="${root}candidate/profile.html"
+        >
+          My Profile
+        </a>
+
+      </div>
+
+      ${logoutButton()}
+    `;
+
+  }
+
+
+  /*
+   * EMPLOYER NAV
+   */
+
+  function employerNavigation() {
+
+    return `
+      <div class="ucpp-nav__links">
+
+        <a
+          class="ucpp-nav__link${active(['dashboard.html'])}"
+          href="${root}employer/dashboard.html"
+        >
+          Dashboard
+        </a>
+
+        <a
+          class="ucpp-nav__link${active(['post-job.html'])}"
+          href="${root}employer/post-job.html"
+        >
+          Post Job
+        </a>
+
+        <a
+          class="ucpp-nav__link${active(['manage-jobs.html'])}"
+          href="${root}employer/manage-jobs.html"
+        >
+          Manage Jobs
+        </a>
+
+        <a
+          class="ucpp-nav__link${active(['applications.html'])}"
+          href="${root}employer/applications.html"
+        >
+          Applications
+        </a>
+
+        <a
+          class="ucpp-nav__link${active(['shortlisted.html'])}"
+          href="${root}employer/shortlisted.html"
+        >
+          Shortlisted
+        </a>
+
+        <a
+          class="ucpp-nav__link${active(['company-profile.html'])}"
+          href="${root}employer/company-profile.html"
+        >
+          Company Profile
+        </a>
+
+      </div>
+
+      ${logoutButton()}
+    `;
+
+  }
+
+
+  /*
+   * ADMIN NAV
+   */
+
+  function adminNavigation() {
+
+    return `
+      <div class="ucpp-nav__links">
+
+        <a
+          class="ucpp-nav__link${active(['dashboard.html'])}"
+          href="${root}admin/dashboard.html"
+        >
+          Dashboard
+        </a>
+
+        <a
+          class="ucpp-nav__link${active(['candidates.html'])}"
+          href="${root}admin/candidates.html"
+        >
+          Candidates
+        </a>
+
+        <a
+          class="ucpp-nav__link${active(['employers.html'])}"
+          href="${root}admin/employers.html"
+        >
+          Employers
+        </a>
+
+        <a
+          class="ucpp-nav__link${active(['jobs.html'])}"
+          href="${root}admin/jobs.html"
+        >
+          Jobs
+        </a>
+
+        <a
+          class="ucpp-nav__link${active(['applications.html'])}"
+          href="${root}admin/applications.html"
+        >
+          Applications
+        </a>
+
+        <a
+          class="ucpp-nav__link${active(['reports.html'])}"
+          href="${root}admin/reports.html"
+        >
+          Reports
+        </a>
+
+        <a
+          class="ucpp-nav__link${active(['settings.html'])}"
+          href="${root}admin/settings.html"
+        >
+          Settings
+        </a>
+
+      </div>
+
+      ${logoutButton()}
+    `;
+
+  }
+
+
+  /*
+   * LOGOUT
+   */
+
+  function logoutButton() {
+
+    return `
+      <div class="ucpp-header__actions">
+
+        <button
+          type="button"
+          id="ucppLogoutButton"
+          class="ucpp-logout-button"
+        >
+          Logout
+        </button>
+
+      </div>
+    `;
+
+  }
+
+
+  /*
+   * DETERMINE NAV
+   */
+
+  function getNavigation() {
+
+    if (!isAuthenticated) {
+      return publicNavigation();
     }
 
 
-    /*
-     * Public job-details.html should activate Jobs.
-     *
-     * Nested candidate job-details.html will later activate
-     * Find Jobs because role navigation is different.
-     */
+    if (role === 'candidate') {
+      return candidateNavigation();
+    }
 
-    return item.match.includes(
-      pathInfo.fileName
+
+    if (role === 'employer') {
+      return employerNavigation();
+    }
+
+
+    if (role === 'admin') {
+      return adminNavigation();
+    }
+
+
+    return publicNavigation();
+
+  }
+
+
+  /*
+   * BRAND TEXT
+   */
+
+  const brandTitle =
+    role === 'admin' && isAuthenticated
+      ? 'UCPP Admin'
+      : 'Udayan Care';
+
+
+  const brandSubtitle =
+    role === 'admin' && isAuthenticated
+      ? 'Administration'
+      : 'Placement Portal';
+
+
+  const brandLink =
+    role === 'admin' && isAuthenticated
+      ? root + 'admin/dashboard.html'
+      : root + 'index.html';
+
+
+  /*
+   * RENDER
+   */
+
+  headerTarget.innerHTML = `
+
+    <header class="ucpp-header">
+
+      <div class="container ucpp-header__container">
+
+
+        <a
+          href="${brandLink}"
+          class="ucpp-brand"
+          aria-label="Udayan Care Placement Portal"
+        >
+
+          <span class="ucpp-brand__logo">
+            UC
+          </span>
+
+          <span class="ucpp-brand__content">
+
+            <strong class="ucpp-brand__title">
+              ${brandTitle}
+            </strong>
+
+            <span class="ucpp-brand__subtitle">
+              ${brandSubtitle}
+            </span>
+
+          </span>
+
+        </a>
+
+
+        <nav
+          id="ucppNavigation"
+          class="ucpp-nav"
+          aria-label="Main navigation"
+        >
+
+          ${getNavigation()}
+
+        </nav>
+
+
+        <button
+          type="button"
+          id="ucppMenuButton"
+          class="ucpp-menu-button"
+          aria-label="Open menu"
+          aria-expanded="false"
+          aria-controls="ucppNavigation"
+        >
+
+          <span></span>
+          <span></span>
+          <span></span>
+
+        </button>
+
+
+      </div>
+
+    </header>
+
+  `;
+
+
+  /*
+   * MOBILE MENU
+   */
+
+  const menuButton =
+    document.getElementById(
+      'ucppMenuButton'
+    );
+
+
+  const navigation =
+    document.getElementById(
+      'ucppNavigation'
+    );
+
+
+  function closeMenu() {
+
+    navigation?.classList.remove(
+      'is-open'
+    );
+
+
+    menuButton?.classList.remove(
+      'is-open'
+    );
+
+
+    menuButton?.setAttribute(
+      'aria-expanded',
+      'false'
     );
 
   }
 
 
+  menuButton?.addEventListener(
+    'click',
+    function () {
 
-  /*
-   * =======================================================
-   * ELEMENT HELPERS
-   * =======================================================
-   */
-
-  function createElement(
-    tag,
-    className = '',
-    text = ''
-  ) {
-
-    const element =
-      document.createElement(tag);
+      const open =
+        navigation.classList.toggle(
+          'is-open'
+        );
 
 
-    if (className) {
-
-      element.className =
-        className;
-
-    }
-
-
-    if (text) {
-
-      element.textContent =
-        text;
-
-    }
-
-
-    return element;
-
-  }
-
-
-
-  /*
-   * =======================================================
-   * BRAND
-   * =======================================================
-   */
-
-  function createBrand(userState) {
-
-    const brand =
-      createElement(
-        'a',
-        'ucpp-brand'
+      menuButton.classList.toggle(
+        'is-open',
+        open
       );
 
 
-    if (
-      userState.authenticated &&
-      userState.role === 'admin'
-    ) {
-
-      brand.href =
-        ROOT + 'admin/dashboard.html';
-
-    } else {
-
-      brand.href =
-        ROOT + 'index.html';
-
-    }
-
-
-    const mark =
-      createElement(
-        'span',
-        'ucpp-brand__mark'
-      );
-
-
-    mark.setAttribute(
-      'aria-hidden',
-      'true'
-    );
-
-
-    mark.textContent =
-      'UC';
-
-
-    const text =
-      createElement(
-        'span',
-        'ucpp-brand__text'
-      );
-
-
-    const title =
-      createElement(
-        'strong',
-        'ucpp-brand__title'
-      );
-
-
-    title.textContent =
-      userState.role === 'admin'
-        ? 'UCPP Admin'
-        : 'Udayan Care';
-
-
-    const subtitle =
-      createElement(
-        'span',
-        'ucpp-brand__subtitle'
-      );
-
-
-    subtitle.textContent =
-      userState.role === 'admin'
-        ? 'Administration'
-        : 'Placement Portal';
-
-
-    text.append(
-      title,
-      subtitle
-    );
-
-
-    brand.append(
-      mark,
-      text
-    );
-
-
-    return brand;
-
-  }
-
-
-
-  /*
-   * =======================================================
-   * NAV LINKS
-   * =======================================================
-   */
-
-  function createNavLink(item) {
-
-    const link =
-      createElement(
-        'a',
-        'ucpp-nav__link',
-        item.label
-      );
-
-
-    link.href =
-      item.href;
-
-
-    if (isActive(item)) {
-
-      link.classList.add(
-        'is-active'
-      );
-
-
-      link.setAttribute(
-        'aria-current',
-        'page'
+      menuButton.setAttribute(
+        'aria-expanded',
+        String(open)
       );
 
     }
+  );
 
 
-    return link;
+  navigation
+    ?.querySelectorAll('a')
+    .forEach(function (link) {
 
-  }
+      link.addEventListener(
+        'click',
+        closeMenu
+      );
 
+    });
+
+
+  document.addEventListener(
+    'keydown',
+    function (event) {
+
+      if (event.key === 'Escape') {
+        closeMenu();
+      }
+
+    }
+  );
+
+
+  window.addEventListener(
+    'resize',
+    function () {
+
+      if (window.innerWidth > 1024) {
+        closeMenu();
+      }
+
+    }
+  );
 
 
   /*
-   * =======================================================
-   * PUBLIC ACTIONS
-   * =======================================================
+   * LOGOUT
    */
 
-  function createPublicActions() {
-
-    const actions =
-      createElement(
-        'div',
-        'ucpp-header__actions'
-      );
-
-
-    const candidate =
-      createElement(
-        'a',
-        'ucpp-header__login ucpp-header__login--candidate',
-        'Candidate Login'
-      );
-
-
-    candidate.href =
-      ROOT + 'candidate/login.html';
-
-
-    const employer =
-      createElement(
-        'a',
-        'ucpp-header__login ucpp-header__login--employer',
-        'Employer Login'
-      );
-
-
-    employer.href =
-      ROOT + 'employer/login.html';
-
-
-    actions.append(
-      candidate,
-      employer
+  const logoutButtonElement =
+    document.getElementById(
+      'ucppLogoutButton'
     );
 
 
-    return actions;
-
-  }
-
-
-
-  /*
-   * =======================================================
-   * LOGOUT BUTTON
-   * =======================================================
-   */
-
-  function createLogoutButton() {
-
-    const button =
-      createElement(
-        'button',
-        'ucpp-header__logout',
-        'Logout'
-      );
-
-
-    button.type =
-      'button';
-
-
-    button.addEventListener(
+  logoutButtonElement
+    ?.addEventListener(
       'click',
       function () {
-
-        /*
-         * Secure logout will be connected
-         * when V2 Auth/Session module is built.
-         */
 
         if (
           window.UCPP_SESSION &&
@@ -692,402 +604,11 @@
 
 
         console.warn(
-          'UCPP secure logout service is not available yet.'
+          'Secure logout service is not connected yet.'
         );
 
       }
     );
-
-
-    return button;
-
-  }
-
-
-
-  /*
-   * =======================================================
-   * NAVIGATION BY ROLE
-   * =======================================================
-   */
-
-  function getNavigationForState(
-    userState
-  ) {
-
-    if (!userState.authenticated) {
-
-      return getPublicNavigation();
-
-    }
-
-
-    switch (userState.role) {
-
-      case 'candidate':
-        return getCandidateNavigation();
-
-
-      case 'employer':
-        return getEmployerNavigation();
-
-
-      case 'admin':
-        return getAdminNavigation();
-
-
-      default:
-        return getPublicNavigation();
-
-    }
-
-  }
-
-
-
-  /*
-   * =======================================================
-   * MOBILE MENU BUTTON
-   * =======================================================
-   */
-
-  function createMenuButton() {
-
-    const button =
-      createElement(
-        'button',
-        'ucpp-menu-button'
-      );
-
-
-    button.type =
-      'button';
-
-
-    button.setAttribute(
-      'aria-label',
-      'Open navigation menu'
-    );
-
-
-    button.setAttribute(
-      'aria-expanded',
-      'false'
-    );
-
-
-    button.setAttribute(
-      'aria-controls',
-      'ucppNavigation'
-    );
-
-
-    for (
-      let i = 0;
-      i < 3;
-      i++
-    ) {
-
-      button.appendChild(
-        createElement(
-          'span',
-          'ucpp-menu-button__line'
-        )
-      );
-
-    }
-
-
-    return button;
-
-  }
-
-
-
-  /*
-   * =======================================================
-   * RENDER
-   * =======================================================
-   */
-
-  function renderHeader() {
-
-    const userState =
-      getUserState();
-
-
-    const navigationItems =
-      getNavigationForState(
-        userState
-      );
-
-
-    const header =
-      createElement(
-        'header',
-        'ucpp-header'
-      );
-
-
-    const container =
-      createElement(
-        'div',
-        'container ucpp-header__container'
-      );
-
-
-    /*
-     * Brand
-     */
-
-    const brand =
-      createBrand(
-        userState
-      );
-
-
-    /*
-     * Navigation
-     */
-
-    const navigation =
-      createElement(
-        'nav',
-        'ucpp-nav'
-      );
-
-
-    navigation.id =
-      'ucppNavigation';
-
-
-    navigation.setAttribute(
-      'aria-label',
-      'Main navigation'
-    );
-
-
-    const links =
-      createElement(
-        'div',
-        'ucpp-nav__links'
-      );
-
-
-    navigationItems.forEach(
-      item => {
-
-        links.appendChild(
-          createNavLink(item)
-        );
-
-      }
-    );
-
-
-    navigation.appendChild(
-      links
-    );
-
-
-    /*
-     * Right actions
-     */
-
-    if (
-      userState.authenticated
-    ) {
-
-      navigation.appendChild(
-        createLogoutButton()
-      );
-
-    } else {
-
-      navigation.appendChild(
-        createPublicActions()
-      );
-
-    }
-
-
-    /*
-     * Mobile button
-     */
-
-    const menuButton =
-      createMenuButton();
-
-
-    container.append(
-      brand,
-      navigation,
-      menuButton
-    );
-
-
-    header.appendChild(
-      container
-    );
-
-
-    headerMount.replaceChildren(
-      header
-    );
-
-
-
-    /*
-     * =====================================================
-     * MOBILE MENU EVENTS
-     * =====================================================
-     */
-
-    function closeMenu() {
-
-      navigation.classList.remove(
-        'is-open'
-      );
-
-
-      menuButton.classList.remove(
-        'is-open'
-      );
-
-
-      menuButton.setAttribute(
-        'aria-expanded',
-        'false'
-      );
-
-
-      menuButton.setAttribute(
-        'aria-label',
-        'Open navigation menu'
-      );
-
-    }
-
-
-    function openMenu() {
-
-      navigation.classList.add(
-        'is-open'
-      );
-
-
-      menuButton.classList.add(
-        'is-open'
-      );
-
-
-      menuButton.setAttribute(
-        'aria-expanded',
-        'true'
-      );
-
-
-      menuButton.setAttribute(
-        'aria-label',
-        'Close navigation menu'
-      );
-
-    }
-
-
-    menuButton.addEventListener(
-      'click',
-      function () {
-
-        const isOpen =
-          navigation.classList.contains(
-            'is-open'
-          );
-
-
-        if (isOpen) {
-
-          closeMenu();
-
-        } else {
-
-          openMenu();
-
-        }
-
-      }
-    );
-
-
-    /*
-     * Close after clicking a navigation link.
-     */
-
-    navigation
-      .querySelectorAll('a')
-      .forEach(
-        link => {
-
-          link.addEventListener(
-            'click',
-            closeMenu
-          );
-
-        }
-      );
-
-
-    /*
-     * Escape closes mobile navigation.
-     */
-
-    document.addEventListener(
-      'keydown',
-      function (event) {
-
-        if (
-          event.key === 'Escape'
-        ) {
-
-          closeMenu();
-
-        }
-
-      }
-    );
-
-
-    /*
-     * If desktop size is restored,
-     * clear mobile menu state.
-     */
-
-    window.addEventListener(
-      'resize',
-      function () {
-
-        if (
-          window.innerWidth > 980
-        ) {
-
-          closeMenu();
-
-        }
-
-      }
-    );
-
-  }
-
-
-
-  /*
-   * =======================================================
-   * START
-   * =======================================================
-   */
-
-  renderHeader();
 
 
 })();
