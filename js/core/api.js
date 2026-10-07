@@ -2,7 +2,7 @@
 
 /*
  * UCPP V2 - Core API Client
- * GET + POST + Jobs + Candidate Auth + Session
+ * GET + POST + Jobs + Candidate Auth + Session + Dashboard
  */
 (function(){
   if(!window.UCPP_CONFIG){
@@ -145,7 +145,9 @@
     const id=String(jobId||'').trim();
 
     if(!id){
-      return Promise.reject(new Error('Job ID is required.'));
+      return Promise.reject(
+        new Error('Job ID is required.')
+      );
     }
 
     return get('getPublicJob',{id:id});
@@ -209,6 +211,29 @@
     }
 
     return post('logoutCandidate',{
+      sessionToken:token
+    });
+  }
+
+  /*
+   * Candidate Dashboard
+   *
+   * Candidate ID is NOT sent from frontend.
+   * Backend derives Candidate_ID from validated session.
+   */
+  function getCandidateDashboard(sessionToken){
+    const token=String(sessionToken||'').trim();
+
+    if(!token){
+      return Promise.resolve({
+        success:false,
+        code:'INVALID_SESSION',
+        message:'Session is not available.',
+        data:null
+      });
+    }
+
+    return post('getCandidateDashboard',{
       sessionToken:token
     });
   }
@@ -280,6 +305,7 @@
     candidateLogin,
     validateCandidateSession,
     logoutCandidate,
+    getCandidateDashboard,
     requestCandidatePasswordReset,
     verifyCandidatePasswordResetOtp,
     resetCandidatePassword
