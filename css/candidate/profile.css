@@ -150,3 +150,7 @@ body.modal-open{overflow:hidden}
 .confirm-actions{flex-direction:column-reverse}
 .confirm-actions button{width:100%}
 }
+
+.profile-skeleton[hidden]{
+  display:none!important;
+}
