@@ -188,3 +188,11 @@
 .application-status{justify-self:start}
 .dashboard-welcome h1{font-size:25px}
 }
+
+/* Always respect hidden state */
+#applicationsSkeleton[hidden],
+#jobsSkeleton[hidden],
+.skeleton-list[hidden],
+.dashboard-jobs-grid[hidden]{
+  display:none!important;
+}
