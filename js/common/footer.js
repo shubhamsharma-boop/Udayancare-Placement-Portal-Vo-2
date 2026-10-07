@@ -1,20 +1,28 @@
 'use strict';
 
 /*
+ * =========================================================
  * UCPP V2
- * Common Footer
+ * Global Footer
+ * =========================================================
  */
 
 (function () {
 
   const footerTarget =
-    document.getElementById('siteFooter');
+    document.getElementById(
+      'siteFooter'
+    );
 
 
   if (!footerTarget) {
     return;
   }
 
+
+  /*
+   * PATH
+   */
 
   const path =
     window.location.pathname;
@@ -27,38 +35,83 @@
 
 
   const root =
-    isNestedPage ? '../' : '';
+    isNestedPage
+      ? '../'
+      : '';
 
 
   const currentYear =
     new Date().getFullYear();
 
 
+  /*
+   * RENDER
+   */
+
   footerTarget.innerHTML = `
+
     <footer class="site-footer">
+
 
       <div class="container site-footer__main">
 
-        <div>
 
-          <div class="site-footer__title">
-            Udayan Care Placement Portal
-          </div>
+        <!-- BRAND -->
+
+        <div class="site-footer__brand">
+
+          <a
+            href="${root}index.html"
+            class="site-footer__brand-header"
+          >
+
+            <span class="site-footer__logo">
+              UC
+            </span>
+
+
+            <span>
+
+              <strong>
+                Udayan Care
+              </strong>
+
+              <small>
+                Placement Portal
+              </small>
+
+            </span>
+
+          </a>
+
 
           <p class="site-footer__description">
+
             Connecting candidates with employment
             opportunities and supporting their journey
             towards meaningful careers.
+
           </p>
+
+
+          <div class="site-footer__badge">
+
+            Making Young Lives Shine Through Employment
+
+          </div>
 
         </div>
 
 
-        <div>
 
-          <div class="site-footer__heading">
+        <!-- QUICK LINKS -->
+
+        <div class="site-footer__column">
+
+          <h3>
             Quick Links
-          </div>
+          </h3>
+
 
           <ul class="site-footer__links">
 
@@ -76,7 +129,7 @@
 
             <li>
               <a href="${root}about.html">
-                About
+                About Us
               </a>
             </li>
 
@@ -91,11 +144,15 @@
         </div>
 
 
-        <div>
 
-          <div class="site-footer__heading">
-            Portal
-          </div>
+        <!-- CANDIDATES -->
+
+        <div class="site-footer__column">
+
+          <h3>
+            For Candidates
+          </h3>
+
 
           <ul class="site-footer__links">
 
@@ -112,6 +169,35 @@
             </li>
 
             <li>
+              <a href="${root}jobs.html">
+                Explore Jobs
+              </a>
+            </li>
+
+            <li>
+              <a href="${root}candidate/applications.html">
+                My Applications
+              </a>
+            </li>
+
+          </ul>
+
+        </div>
+
+
+
+        <!-- EMPLOYERS -->
+
+        <div class="site-footer__column">
+
+          <h3>
+            For Employers
+          </h3>
+
+
+          <ul class="site-footer__links">
+
+            <li>
               <a href="${root}employer/login.html">
                 Employer Login
               </a>
@@ -123,33 +209,53 @@
               </a>
             </li>
 
+            <li>
+              <a href="${root}employer/post-job.html">
+                Post a Job
+              </a>
+            </li>
+
+            <li>
+              <a href="${root}employer/applications.html">
+                Applications
+              </a>
+            </li>
+
           </ul>
 
         </div>
 
+
       </div>
 
+
+
+      <!-- BOTTOM -->
 
       <div class="site-footer__bottom">
 
         <div class="container site-footer__bottom-inner">
+
 
           <p>
             © ${currentYear} Udayan Care.
             All rights reserved.
           </p>
 
-          <p>
-            Making Young Lives Shine Through Employment
+
+          <p class="site-footer__initiative">
+            An Initiative of Udayan Care
           </p>
+
 
         </div>
 
       </div>
 
+
     </footer>
+
   `;
 
 
 })();
-
