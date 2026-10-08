@@ -155,3 +155,24 @@
 .application-status{justify-self:start}
 .dashboard-welcome h1{font-size:25px}
 }
+
+
+/* UCPP V2 - Dashboard Performance & Accessibility */
+.candidate-dashboard [hidden]{display:none!important}
+.candidate-dashboard .stat-card,
+.candidate-dashboard .dashboard-job{
+backface-visibility:hidden;
+}
+.candidate-dashboard .stat-card:hover{
+transform:translateY(-2px);
+}
+@media(prefers-reduced-motion:reduce){
+.candidate-dashboard *,
+.candidate-dashboard *::before,
+.candidate-dashboard *::after{
+animation-duration:.01ms!important;
+animation-iteration-count:1!important;
+transition-duration:.01ms!important;
+scroll-behavior:auto!important;
+}
+}
