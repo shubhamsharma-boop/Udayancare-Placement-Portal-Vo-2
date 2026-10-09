@@ -1,318 +1,541 @@
+
 'use strict';
 
 /*
- * UCPP V2 - Session Manager
- * Candidate backend session validation + logout
+ * =========================================================
+ * UCPP V2 - Core Session Manager
+ * Candidate + Employer Authentication
+ * =========================================================
  */
-(function(){
-  const STORAGE_KEY='ucpp_v2_session';
-  const VALID_ROLES=new Set(['candidate','employer','admin']);
 
-  function parseJSON(value){
-    try{
+(function () {
+
+  const STORAGE_KEY = 'ucpp_v2_session';
+
+  const VALID_ROLES = new Set([
+    'candidate',
+    'employer',
+    'admin'
+  ]);
+
+  function parseJSON(value) {
+    try {
       return JSON.parse(value);
-    }catch(error){
+    } catch (error) {
       return null;
     }
   }
 
-  function normalizeRole(role){
-    const value=String(role||'').trim().toLowerCase();
-    return VALID_ROLES.has(value)?value:'';
+  function normalizeRole(role) {
+    const value = String(role || '').trim().toLowerCase();
+    return VALID_ROLES.has(value) ? value : '';
   }
 
-  function clearStoredSession(){
+  function clearStoredSession() {
     sessionStorage.removeItem(STORAGE_KEY);
   }
 
-  function readStoredSession(){
-    const raw=sessionStorage.getItem(STORAGE_KEY);
-    if(!raw)return null;
+  function readStoredSession() {
 
-    const data=parseJSON(raw);
-    if(!data||data.isAuthenticated!==true){
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+
+    if (!raw) return null;
+
+    const data = parseJSON(raw);
+
+    if (!data || data.isAuthenticated !== true) {
       clearStoredSession();
       return null;
     }
 
-    const role=normalizeRole(data.role);
-    const sessionToken=String(data.sessionToken||'').trim();
+    const role = normalizeRole(data.role);
+    const sessionToken = String(data.sessionToken || '').trim();
 
-    if(!role||!sessionToken){
+    if (!role || !sessionToken) {
       clearStoredSession();
       return null;
     }
 
-    return{
-      isAuthenticated:true,
-      role:role,
-      sessionToken:sessionToken,
-      userId:String(data.userId||''),
-      displayName:String(data.displayName||''),
-      email:String(data.email||'')
+    return {
+      isAuthenticated: true,
+      role: role,
+      sessionToken: sessionToken,
+      userId: String(data.userId || ''),
+      displayName: String(data.displayName || ''),
+      email: String(data.email || '')
     };
   }
 
-  function setSession(data){
-    if(!data)throw new Error('Session data is required.');
+  function setSession(data) {
 
-    const role=normalizeRole(data.role);
-    const sessionToken=String(data.sessionToken||'').trim();
+    if (!data) {
+      throw new Error('Session data is required.');
+    }
 
-    if(!role)throw new Error('Invalid session role.');
-    if(!sessionToken)throw new Error('Session token is required.');
+    const role = normalizeRole(data.role);
+    const sessionToken = String(data.sessionToken || '').trim();
 
-    const session={
-      isAuthenticated:true,
-      role:role,
-      sessionToken:sessionToken,
-      userId:String(data.userId||''),
-      displayName:String(data.displayName||''),
-      email:String(data.email||'')
+    if (!role) {
+      throw new Error('Invalid session role.');
+    }
+
+    if (!sessionToken) {
+      throw new Error('Session token is required.');
+    }
+
+    const session = {
+      isAuthenticated: true,
+      role: role,
+      sessionToken: sessionToken,
+      userId: String(data.userId || ''),
+      displayName: String(data.displayName || ''),
+      email: String(data.email || '')
     };
 
-    sessionStorage.setItem(STORAGE_KEY,JSON.stringify(session));
+    sessionStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify(session)
+    );
+
     syncPublicState(session);
+
     return session;
   }
 
-  function getSession(){
+  function getSession() {
     return readStoredSession();
   }
 
-  function isAuthenticated(){
+  function isAuthenticated() {
     return Boolean(readStoredSession());
   }
 
-  function hasRole(requiredRole){
-    const session=readStoredSession();
-    if(!session)return false;
-    return session.role===normalizeRole(requiredRole);
+  function hasRole(requiredRole) {
+
+    const session = readStoredSession();
+
+    if (!session) return false;
+
+    return session.role === normalizeRole(requiredRole);
   }
 
-  function syncPublicState(session){
-    if(!session){
-      window.UCPP_SESSION={
-        isAuthenticated:false,
-        role:'public',
-        logout:logout
+  function syncPublicState(session) {
+
+    if (!session) {
+      window.UCPP_SESSION = {
+        isAuthenticated: false,
+        role: 'public',
+        logout: logout
       };
       return;
     }
 
-    window.UCPP_SESSION={
-      isAuthenticated:true,
-      role:session.role,
-      userId:session.userId,
-      displayName:session.displayName,
-      email:session.email,
-      logout:logout
+    window.UCPP_SESSION = {
+      isAuthenticated: true,
+      role: session.role,
+      userId: session.userId,
+      displayName: session.displayName,
+      email: session.email,
+      logout: logout
     };
   }
 
-  function getLoginPath(role){
-    const path=window.location.pathname;
+  function getLoginPath(role) {
 
-    if(role==='candidate'){
-      return path.includes('/candidate/')?'login.html':'candidate/login.html';
+    const path = window.location.pathname;
+
+    if (role === 'candidate') {
+      return path.includes('/candidate/')
+        ? 'login.html'
+        : 'candidate/login.html';
     }
 
-    if(role==='employer'){
-      return path.includes('/employer/')?'login.html':'employer/login.html';
+    if (role === 'employer') {
+      return path.includes('/employer/')
+        ? 'login.html'
+        : 'employer/login.html';
     }
 
-    if(role==='admin'){
-      return path.includes('/admin/')?'login.html':'admin/login.html';
+    if (role === 'admin') {
+      return path.includes('/admin/')
+        ? 'login.html'
+        : 'admin/login.html';
     }
 
-    return path.includes('/candidate/')||
-      path.includes('/employer/')||
+    return (
+      path.includes('/candidate/') ||
+      path.includes('/employer/') ||
       path.includes('/admin/')
-      ?'../index.html'
-      :'index.html';
+    )
+      ? '../index.html'
+      : 'index.html';
   }
 
-  function getHomePath(){
-    const path=window.location.pathname;
+  function getHomePath() {
 
-    return path.includes('/candidate/')||
-      path.includes('/employer/')||
+    const path = window.location.pathname;
+
+    return (
+      path.includes('/candidate/') ||
+      path.includes('/employer/') ||
       path.includes('/admin/')
-      ?'../index.html'
-      :'index.html';
+    )
+      ? '../index.html'
+      : 'index.html';
   }
 
-  async function validateSession(){
-    const session=readStoredSession();
+  /*
+   * =========================================================
+   * SESSION VALIDATION
+   * =========================================================
+   */
 
-    if(!session){
+  async function validateSession() {
+
+    const session = readStoredSession();
+
+    if (!session) {
+
       syncPublicState(null);
-      return{
-        success:false,
-        code:'NO_SESSION'
+
+      return {
+        success: false,
+        code: 'NO_SESSION'
       };
     }
 
     /*
-     * Candidate backend session is now available.
-     * Employer/Admin will be connected later.
+     * EMPLOYER BACKEND SESSION VALIDATION
      */
-    if(session.role!=='candidate'){
-      syncPublicState(session);
-      return{
-        success:true,
-        code:'LOCAL_SESSION',
-        session:session
-      };
-    }
 
-    if(!window.UCPP_API||typeof window.UCPP_API.validateCandidateSession!=='function'){
-      return{
-        success:false,
-        code:'API_UNAVAILABLE'
-      };
-    }
+    if (session.role === 'employer') {
 
-    try{
-      const result=await window.UCPP_API.validateCandidateSession(session.sessionToken);
-
-      if(!result||result.success!==true){
-        clearStoredSession();
-        syncPublicState(null);
-
-        return{
-          success:false,
-          code:result?.code||'INVALID_SESSION'
+      if (
+        !window.UCPP_API ||
+        typeof window.UCPP_API.post !== 'function'
+      ) {
+        return {
+          success: false,
+          code: 'API_UNAVAILABLE'
         };
       }
 
-      const user=result.data?.user||{};
+      try {
 
-      const updated=setSession({
-        role:'candidate',
-        sessionToken:session.sessionToken,
-        userId:user.candidateId||session.userId,
-        displayName:user.fullName||session.displayName,
-        email:user.email||session.email
+        const result = await window.UCPP_API.post(
+          'validateEmployerSession',
+          {
+            sessionToken: session.sessionToken
+          }
+        );
+
+        if (!result || result.success !== true) {
+
+          /*
+           * Do not clear session for unrelated backend
+           * failures. Only confirmed invalid sessions.
+           */
+
+          const code = String(result?.code || '');
+
+          if (
+            code === 'INVALID_SESSION' ||
+            code === 'SESSION_EXPIRED' ||
+            code === 'SESSION_NOT_FOUND' ||
+            code === 'UNAUTHORIZED'
+          ) {
+
+            clearStoredSession();
+            syncPublicState(null);
+
+            return {
+              success: false,
+              code: 'INVALID_SESSION'
+            };
+          }
+
+          return {
+            success: false,
+            code: code || 'SESSION_CHECK_FAILED',
+            message: result?.message || 'Session validation failed.'
+          };
+        }
+
+        syncPublicState(session);
+
+        return {
+          success: true,
+          code: 'SESSION_VALID',
+          session: session
+        };
+
+      } catch (error) {
+
+        return {
+          success: false,
+          code: 'SESSION_CHECK_FAILED',
+          message: error.message
+        };
+      }
+    }
+
+    /*
+     * ADMIN SESSION
+     * Backend integration pending.
+     * Never trust local session alone.
+     */
+
+    if (session.role === 'admin') {
+
+      return {
+        success: false,
+        code: 'API_UNAVAILABLE'
+      };
+    }
+
+    /*
+     * CANDIDATE BACKEND SESSION VALIDATION
+     * Existing functionality preserved.
+     */
+
+    if (
+      !window.UCPP_API ||
+      typeof window.UCPP_API.validateCandidateSession !== 'function'
+    ) {
+
+      return {
+        success: false,
+        code: 'API_UNAVAILABLE'
+      };
+    }
+
+    try {
+
+      const result =
+        await window.UCPP_API.validateCandidateSession(
+          session.sessionToken
+        );
+
+      if (!result || result.success !== true) {
+
+        clearStoredSession();
+        syncPublicState(null);
+
+        return {
+          success: false,
+          code: result?.code || 'INVALID_SESSION'
+        };
+      }
+
+      const user = result.data?.user || {};
+
+      const updated = setSession({
+        role: 'candidate',
+        sessionToken: session.sessionToken,
+        userId: user.candidateId || session.userId,
+        displayName: user.fullName || session.displayName,
+        email: user.email || session.email
       });
 
-      return{
-        success:true,
-        code:'SESSION_VALID',
-        session:updated
+      return {
+        success: true,
+        code: 'SESSION_VALID',
+        session: updated
       };
-    }catch(error){
+
+    } catch (error) {
+
       /*
-       * Network failure is different from an invalid session.
-       * Do not destroy a valid local session because internet/API
-       * temporarily failed.
+       * Network failures should not destroy
+       * the stored candidate session.
        */
-      return{
-        success:false,
-        code:'SESSION_CHECK_FAILED',
-        message:error.message
+
+      return {
+        success: false,
+        code: 'SESSION_CHECK_FAILED',
+        message: error.message
       };
     }
   }
 
-  async function logout(){
-    const session=readStoredSession();
+  /*
+   * =========================================================
+   * LOGOUT
+   * =========================================================
+   */
+
+  async function logout() {
+
+    const session = readStoredSession();
 
     /*
-     * Clear browser state immediately.
+     * Immediately clear browser session.
      */
+
     clearStoredSession();
     syncPublicState(null);
 
     /*
-     * Candidate server session is invalidated too.
-     * Redirect still happens even if network/API logout fails.
+     * Candidate server logout.
+     * Existing behavior preserved.
      */
-    if(
-      session&&
-      session.role==='candidate'&&
-      session.sessionToken&&
-      window.UCPP_API&&
-      typeof window.UCPP_API.logoutCandidate==='function'
-    ){
-      try{
-        await window.UCPP_API.logoutCandidate(session.sessionToken);
-      }catch(error){
-        console.warn('Server logout unavailable.');
+
+    if (
+      session &&
+      session.role === 'candidate' &&
+      session.sessionToken &&
+      window.UCPP_API &&
+      typeof window.UCPP_API.logoutCandidate === 'function'
+    ) {
+
+      try {
+
+        await window.UCPP_API.logoutCandidate(
+          session.sessionToken
+        );
+
+      } catch (error) {
+
+        console.warn('Candidate server logout unavailable.');
+      }
+    }
+
+    /*
+     * Employer server logout.
+     */
+
+    if (
+      session &&
+      session.role === 'employer' &&
+      session.sessionToken &&
+      window.UCPP_API &&
+      typeof window.UCPP_API.post === 'function'
+    ) {
+
+      try {
+
+        await window.UCPP_API.post(
+          'logoutEmployer',
+          {
+            sessionToken: session.sessionToken
+          }
+        );
+
+      } catch (error) {
+
+        console.warn('Employer server logout unavailable.');
       }
     }
 
     window.location.replace(getHomePath());
   }
 
-  function requireAuth(requiredRole){
-    const session=readStoredSession();
+  /*
+   * =========================================================
+   * AUTH GUARDS
+   * =========================================================
+   */
 
-    if(!session)return false;
+  function requireAuth(requiredRole) {
 
-    if(requiredRole&&session.role!==normalizeRole(requiredRole)){
+    const session = readStoredSession();
+
+    if (!session) return false;
+
+    if (
+      requiredRole &&
+      session.role !== normalizeRole(requiredRole)
+    ) {
       return false;
     }
 
     return true;
   }
 
-  async function requireValidAuth(requiredRole){
-    const role=normalizeRole(requiredRole);
+  async function requireValidAuth(requiredRole) {
 
-    if(requiredRole&&!role){
+    const role = normalizeRole(requiredRole);
+
+    if (requiredRole && !role) {
       return false;
     }
 
-    const session=readStoredSession();
+    const session = readStoredSession();
 
-    if(!session){
+    if (!session) {
+
       syncPublicState(null);
-      window.location.replace(getLoginPath(role));
+
+      window.location.replace(
+        getLoginPath(role)
+      );
+
       return false;
     }
 
-    if(role&&session.role!==role){
+    if (role && session.role !== role) {
+
       clearStoredSession();
       syncPublicState(null);
-      window.location.replace(getLoginPath(role));
+
+      window.location.replace(
+        getLoginPath(role)
+      );
+
       return false;
     }
 
-    const validation=await validateSession();
+    const validation = await validateSession();
 
-    if(validation.success===true){
+    if (validation.success === true) {
       return true;
     }
 
-    if(
-      validation.code==='INVALID_SESSION'||
-      validation.code==='NO_SESSION'
-    ){
+    if (
+      validation.code === 'INVALID_SESSION' ||
+      validation.code === 'NO_SESSION'
+    ) {
+
       clearStoredSession();
       syncPublicState(null);
-      window.location.replace(getLoginPath(role));
+
+      window.location.replace(
+        getLoginPath(role)
+      );
+
       return false;
     }
 
     /*
-     * Temporary network/API failure:
-     * do not falsely log the candidate out.
+     * API or network failure:
+     * Do not grant access and do not
+     * unnecessarily delete local session.
      */
+
     return false;
   }
 
-  const existingSession=readStoredSession();
+  /*
+   * =========================================================
+   * INITIALIZE SESSION STATE
+   * =========================================================
+   */
+
+  const existingSession = readStoredSession();
+
   syncPublicState(existingSession);
 
-  window.UCPP_SESSION_MANAGER=Object.freeze({
-    getSession:getSession,
-    setSession:setSession,
-    isAuthenticated:isAuthenticated,
-    hasRole:hasRole,
-    validateSession:validateSession,
-    requireAuth:requireAuth,
-    requireValidAuth:requireValidAuth,
-    logout:logout
+  window.UCPP_SESSION_MANAGER = Object.freeze({
+
+    getSession: getSession,
+    setSession: setSession,
+    isAuthenticated: isAuthenticated,
+    hasRole: hasRole,
+    validateSession: validateSession,
+    requireAuth: requireAuth,
+    requireValidAuth: requireValidAuth,
+    logout: logout
+
   });
+
 })();
