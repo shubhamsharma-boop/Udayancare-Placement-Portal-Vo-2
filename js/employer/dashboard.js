@@ -225,12 +225,23 @@
         throw new Error('Session validation service is unavailable.');
       }
 
-      const valid = await SESSION.validateSession();
+const validation = await SESSION.validateSession();
 
-      if (!valid) {
-        window.location.replace('login.html');
-        return;
-      }
+if (validation.success !== true) {
+
+  if (
+    validation.code === 'INVALID_SESSION' ||
+    validation.code === 'NO_SESSION'
+  ) {
+    window.location.replace('login.html');
+    return;
+  }
+
+  throw new Error(
+    validation.message ||
+    'Unable to verify your session. Please try again.'
+  );
+}
 
       const payload = { sessionToken: session.sessionToken };
 
