@@ -1,7 +1,7 @@
 
 /*
  * =========================================================
- * UCPP V2 — Employer Candidate Profile View v1.0
+ * UCPP V2 — Employer Candidate Profile View v1.1
  * Page-specific CSS | Responsive | Read-only
  * =========================================================
  */
@@ -309,8 +309,230 @@
 }
 
 .candidate-empty-value {
+  margin: 0;
   color: #8a96a6;
   font-size: 12px;
+  line-height: 1.7;
+}
+
+/* WORK EXPERIENCE DETAILS */
+
+#candidateExperienceList {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.candidate-experience-item {
+  position: relative;
+  min-width: 0;
+  padding: 18px 20px;
+  border: 1px solid #e2eaf5;
+  border-left: 3px solid #3679ca;
+  border-radius: 11px;
+  background: #fbfdff;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.candidate-experience-item:hover {
+  border-color: #cbdcf2;
+  border-left-color: #3679ca;
+  box-shadow: 0 5px 18px rgba(35, 74, 122, 0.05);
+}
+
+.candidate-experience-item h3 {
+  margin: 0 0 6px;
+  color: #1e3554;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.candidate-experience-item p {
+  margin: 5px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.candidate-experience-item .candidate-experience-company {
+  color: #315f97;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.candidate-experience-item .candidate-experience-meta {
+  color: #78869a;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.candidate-experience-item .candidate-experience-description {
+  margin-top: 12px;
+  padding-top: 11px;
+  border-top: 1px solid #e9eef5;
+  color: #53647c;
+  line-height: 1.8;
+}
+
+/* CERTIFICATIONS & TRAINING */
+
+#candidateCertificationsList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  min-width: 0;
+}
+
+.candidate-certification-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid #e2eaf5;
+  border-radius: 11px;
+  background: #fbfdff;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.candidate-certification-item:hover {
+  border-color: #bcd4f2;
+  box-shadow: 0 5px 18px rgba(35, 74, 122, 0.05);
+}
+
+.candidate-certification-item h3 {
+  margin: 0 0 8px;
+  color: #1e3554;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.candidate-certification-org {
+  margin: 0 0 9px;
+  color: #315f97;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.candidate-certification-meta {
+  margin: 0 0 10px;
+  color: #7b889a;
+  font-size: 11px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.candidate-certification-description {
+  margin: 0 0 12px;
+  color: #596b82;
+  font-size: 12px;
+  line-height: 1.75;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.candidate-credential-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  margin-top: auto;
+  padding: 8px 12px;
+  border: 1px solid #cbdff8;
+  border-radius: 7px;
+  background: #eef5ff;
+  color: #245b9d;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.4;
+  text-decoration: none;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.candidate-credential-link:hover {
+  border-color: #a8c9f0;
+  background: #e2efff;
+  text-decoration: none;
+}
+
+.candidate-credential-link:focus-visible {
+  outline: 3px solid #80b5f4;
+  outline-offset: 3px;
+}
+
+#candidateCertificationsList > .candidate-empty-value {
+  grid-column: 1 / -1;
+}
+
+/* PROFESSIONAL LINKS */
+
+#candidateSocialLinks {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-width: 0;
+}
+
+.candidate-social-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  min-height: 43px;
+  padding: 11px 13px;
+  border: 1px solid #e0eaf7;
+  border-radius: 9px;
+  background: #f7faff;
+  color: #245b9d;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.5;
+  text-decoration: none;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.candidate-social-link:hover {
+  border-color: #bad3f3;
+  background: #eaf3ff;
+  color: #194d88;
+  text-decoration: none;
+  transform: translateY(-1px);
+}
+
+.candidate-social-link:focus-visible {
+  outline: 3px solid #80b5f4;
+  outline-offset: 3px;
+}
+
+.candidate-social-link span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.candidate-social-link span:last-child {
+  flex-shrink: 0;
+  color: #4778b3;
+  font-size: 17px;
+  line-height: 1;
 }
 
 /* CONTACT DETAILS */
@@ -449,9 +671,11 @@
 }
 
 .candidate-skeleton-avatar {
+  position: relative;
   flex-shrink: 0;
   width: 85px;
   height: 85px;
+  overflow: hidden;
   border-radius: 50%;
   background: #edf1f6;
 }
@@ -493,11 +717,6 @@
     transparent
   );
   animation: candidateViewShimmer 1.4s infinite;
-}
-
-.candidate-skeleton-avatar {
-  position: relative;
-  overflow: hidden;
 }
 
 @keyframes candidateViewShimmer {
@@ -573,9 +792,15 @@
     display: flex;
   }
 
-  .candidate-detail-grid {
+  .candidate-detail-grid,
+  #candidateCertificationsList {
     grid-template-columns: 1fr;
     gap: 11px;
+  }
+
+  .candidate-experience-item,
+  .candidate-certification-item {
+    padding: 15px;
   }
 
   .candidate-view-footer {
@@ -620,7 +845,15 @@
     animation: none;
   }
 
-  .candidate-action-btn {
+  .candidate-action-btn,
+  .candidate-experience-item,
+  .candidate-certification-item,
+  .candidate-credential-link,
+  .candidate-social-link {
     transition: none;
+  }
+
+  .candidate-social-link:hover {
+    transform: none;
   }
 }
