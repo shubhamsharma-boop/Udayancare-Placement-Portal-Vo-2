@@ -235,6 +235,216 @@
     image.src = photoUrl;
   }
 
+
+function renderSocialLinks() {
+
+  const container = $('candidateSocialLinks');
+  if (!container) return;
+
+  container.replaceChildren();
+
+  const links = state.socialLinks || {};
+
+  const platforms = [
+    { key: 'linkedIn', label: 'LinkedIn' },
+    { key: 'naukri', label: 'Naukri' },
+    { key: 'indeed', label: 'Indeed' },
+    { key: 'github', label: 'GitHub' },
+    { key: 'portfolio', label: 'Portfolio' },
+    { key: 'otherLink', label: 'Other Link' }
+  ];
+
+  let count = 0;
+
+  platforms.forEach((platform) => {
+
+    const value = String(
+      links[platform.key] || ''
+    ).trim();
+
+    if (!value) return;
+
+    // Only allow valid HTTPS links.
+    let url;
+
+    try {
+      url = new URL(value);
+
+      if (url.protocol !== 'https:') return;
+
+    } catch (error) {
+      return;
+    }
+
+    const link = document.createElement('a');
+
+    link.href = url.href;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.className = 'candidate-social-link';
+
+    const label = document.createElement('span');
+    label.textContent = platform.label;
+
+    const arrow = document.createElement('span');
+    arrow.textContent = '↗';
+    arrow.setAttribute('aria-hidden', 'true');
+
+    link.append(label, arrow);
+    container.appendChild(link);
+
+    count++;
+
+  });
+
+  if (count === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'candidate-empty-value';
+    empty.textContent = 'No professional links available.';
+    container.appendChild(empty);
+  }
+}
+  
+
+function renderCertifications() {
+
+  const container = $('candidateCertificationsList');
+  if (!container) return;
+
+  container.replaceChildren();
+
+  const certifications = Array.isArray(state.certifications)
+    ? state.certifications
+    : [];
+
+  if (!certifications.length) {
+    const empty = document.createElement('p');
+    empty.className = 'candidate-empty-value';
+    empty.textContent = 'No certifications available.';
+    container.appendChild(empty);
+    return;
+  }
+
+  certifications.forEach((item) => {
+
+    const card = document.createElement('div');
+    card.className = 'candidate-certification-item';
+
+    const title = document.createElement('h3');
+    title.textContent =
+      item.certificationName || 'Certification';
+
+    const organization = document.createElement('p');
+    organization.className = 'candidate-certification-org';
+    organization.textContent =
+      item.issuingOrganization || 'Organization not provided';
+
+    const dates = document.createElement('p');
+    dates.className = 'candidate-certification-meta';
+
+    const parts = [];
+
+    if (item.issueDate) {
+      parts.push('Issued: ' + formatDate(item.issueDate));
+    }
+
+    if (item.expiryDate) {
+      parts.push('Expires: ' + formatDate(item.expiryDate));
+    }
+
+    dates.textContent = parts.join(' | ');
+
+    const description = document.createElement('p');
+    description.className = 'candidate-certification-description';
+    description.textContent = item.description || '';
+
+    card.append(title, organization);
+
+    if (parts.length) card.appendChild(dates);
+    if (description.textContent) card.appendChild(description);
+
+    // Only allow HTTPS credential links.
+    const credentialUrl = String(item.credentialUrl || '').trim();
+
+    if (/^https:\/\//i.test(credentialUrl)) {
+      const link = document.createElement('a');
+      link.href = credentialUrl;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.className = 'candidate-credential-link';
+      link.textContent = 'View Credential';
+      card.appendChild(link);
+    }
+
+    container.appendChild(card);
+
+  });
+}
+
+  
+  
+function renderExperienceDetails() {
+
+  const container = $('candidateExperienceList');
+  if (!container) return;
+
+  container.replaceChildren();
+
+  const experiences = Array.isArray(state.experience)
+    ? state.experience
+    : [];
+
+  if (!experiences.length) {
+    const empty = document.createElement('p');
+    empty.className = 'candidate-empty-value';
+    empty.textContent = 'No work experience details available.';
+    container.appendChild(empty);
+    return;
+  }
+
+  experiences.forEach((item) => {
+
+    const card = document.createElement('div');
+    card.className = 'candidate-experience-item';
+
+    const title = document.createElement('h3');
+    title.textContent = getField(item, [
+      'jobTitle'
+    ], 'Job title not provided');
+
+    const company = document.createElement('p');
+    company.className = 'candidate-experience-company';
+    company.textContent = getField(item, [
+      'companyName'
+    ], 'Company not provided');
+
+    const details = document.createElement('p');
+    details.className = 'candidate-experience-meta';
+
+    const startDate = formatDate(item.startDate);
+    const endDate =
+      String(item.currentlyWorking || '').toLowerCase() === 'yes'
+        ? 'Present'
+        : formatDate(item.endDate);
+
+    details.textContent = [
+      startDate + ' – ' + endDate,
+      item.employmentType,
+      item.location
+    ].filter(Boolean).join(' | ');
+
+    const responsibilities = document.createElement('p');
+    responsibilities.className = 'candidate-experience-description';
+    responsibilities.textContent =
+      item.responsibilities || 'No responsibilities provided.';
+
+    card.append(title, company, details, responsibilities);
+    container.appendChild(card);
+
+  });
+}
+
+
   function renderProfile() {
     const candidate = state.candidate;
     const application = state.application;
@@ -541,7 +751,9 @@ state.socialLinks = profileData?.socialLinks || {};
       }
 
       renderProfile();
-
+      renderExperienceDetails();
+      renderCertifications();
+      renderSocialLinks();
       show('candidateViewSkeleton', false);
       show('candidateViewEmpty', false);
       show('candidateViewContent', true);
