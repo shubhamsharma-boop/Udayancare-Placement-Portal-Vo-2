@@ -643,6 +643,30 @@
       'status-actions'
     );
 
+    // View Candidate Digital Resume
+const viewProfileButton = createElement(
+  'button',
+  'status-action',
+  'View Profile'
+);
+
+viewProfileButton.type = 'button';
+
+viewProfileButton.addEventListener('click', () => {
+  const applicationId = getApplicationId(app);
+
+  if (!applicationId) {
+    return;
+  }
+
+  window.location.href =
+    'candidate-profile-view.html?applicationId=' +
+    encodeURIComponent(applicationId);
+});
+
+actions.appendChild(viewProfileButton);
+
+
     const shortlistButton = createElement(
       'button',
       'status-action success',
