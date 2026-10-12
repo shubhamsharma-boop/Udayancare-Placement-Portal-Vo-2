@@ -500,6 +500,14 @@
 
       state.candidate = candidate;
 
+      state.experience = Array.isArray(profileData?.experience)
+  ? profileData.experience : [];
+
+state.certifications = Array.isArray(profileData?.certifications)
+  ? profileData.certifications : [];
+
+state.socialLinks = profileData?.socialLinks || {};
+
       /*
        * Job details are optional.
        * The application remains the primary record.
