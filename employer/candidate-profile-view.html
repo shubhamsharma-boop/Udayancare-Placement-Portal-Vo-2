@@ -10,7 +10,7 @@
 
   <meta
     name="description"
-    content="View candidate digital resume, education, skills and experience on Udayan Care Placement Portal."
+    content="View candidate digital resume, education, skills, work experience, certifications and application details on Udayan Care Placement Portal."
   >
 
   <!-- COMMON CSS -->
@@ -29,12 +29,15 @@
 
 <body>
 
+  <!-- SHARED HEADER -->
   <div id="siteHeader"></div>
 
-  <main class="profile-page employer-candidate-view-page">
+  <main
+    id="mainContent"
+    class="profile-page employer-candidate-view-page"
+  >
 
     <!-- PAGE HERO -->
-
     <section class="profile-hero">
       <div class="profile-container">
 
@@ -49,7 +52,7 @@
 
             <p>
               Review candidate qualifications, skills,
-              experience and application details.
+              experience, certifications and application details.
             </p>
           </div>
 
@@ -67,24 +70,31 @@
     </section>
 
     <!-- MAIN CONTENT -->
-
-    <section class="profile-content">
+    <section
+      class="profile-content"
+      aria-label="Candidate profile information"
+    >
       <div class="profile-container">
 
         <!-- ALERT -->
-
         <div
           id="candidateViewAlert"
           class="profile-alert"
           role="alert"
+          aria-live="assertive"
           hidden
         ></div>
 
         <!-- LOADING SKELETON -->
-
-        <div id="candidateViewSkeleton" class="candidate-view-skeleton">
+        <div
+          id="candidateViewSkeleton"
+          class="candidate-view-skeleton"
+          role="status"
+          aria-label="Loading candidate profile"
+        >
 
           <div class="candidate-skeleton-header">
+
             <div class="candidate-skeleton-avatar"></div>
 
             <div class="candidate-skeleton-info">
@@ -92,6 +102,7 @@
               <div class="candidate-skeleton-line"></div>
               <div class="candidate-skeleton-line short"></div>
             </div>
+
           </div>
 
           <div class="candidate-skeleton-card">
@@ -105,25 +116,33 @@
             <div class="candidate-skeleton-line"></div>
             <div class="candidate-skeleton-line"></div>
           </div>
+
+          <span class="sr-only">
+            Loading candidate profile...
+          </span>
 
         </div>
 
         <!-- PROFILE CONTENT -->
-
         <div id="candidateViewContent" hidden>
 
           <!-- CANDIDATE SUMMARY -->
-
-          <section class="section-card candidate-summary-card">
+          <section
+            class="section-card candidate-summary-card"
+            aria-label="Candidate summary"
+          >
 
             <div class="candidate-summary-layout">
 
+              <!-- PHOTO -->
               <div class="candidate-photo-wrap">
 
                 <img
                   id="candidateProfilePhoto"
                   class="candidate-profile-photo"
                   alt="Candidate profile photo"
+                  loading="lazy"
+                  decoding="async"
                   hidden
                 >
 
@@ -137,6 +156,7 @@
 
               </div>
 
+              <!-- SUMMARY DETAILS -->
               <div class="candidate-summary-details">
 
                 <span class="section-eyebrow">
@@ -150,11 +170,9 @@
                 </p>
 
                 <div class="candidate-summary-meta">
-
                   <span id="candidateCurrentCity">—</span>
                   <span id="candidateEducationSummary">—</span>
                   <span id="candidateExperienceSummary">—</span>
-
                 </div>
 
                 <div class="candidate-profile-ids">
@@ -173,6 +191,7 @@
 
               </div>
 
+              <!-- APPLICATION STATUS -->
               <div class="candidate-summary-status">
 
                 <span class="candidate-status-label">
@@ -192,16 +211,13 @@
 
           </section>
 
-          <!-- TWO COLUMN LAYOUT -->
-
+          <!-- TWO-COLUMN LAYOUT -->
           <div class="candidate-view-grid">
 
             <!-- LEFT COLUMN -->
-
             <div class="candidate-view-main">
 
               <!-- ABOUT -->
-
               <section class="section-card">
 
                 <div class="section-heading">
@@ -209,7 +225,6 @@
                     <span class="section-eyebrow">
                       Professional Overview
                     </span>
-
                     <h2>About Candidate</h2>
                   </div>
                 </div>
@@ -217,14 +232,11 @@
                 <p
                   id="candidateAbout"
                   class="candidate-about-text"
-                >
-                  —
-                </p>
+                >—</p>
 
               </section>
 
               <!-- EDUCATION -->
-
               <section class="section-card">
 
                 <div class="section-heading">
@@ -232,8 +244,7 @@
                     <span class="section-eyebrow">
                       Academic Background
                     </span>
-
-                    <h2>Education & Qualification</h2>
+                    <h2>Education &amp; Qualification</h2>
                   </div>
                 </div>
 
@@ -259,7 +270,6 @@
               </section>
 
               <!-- SKILLS -->
-
               <section class="section-card">
 
                 <div class="section-heading">
@@ -267,7 +277,6 @@
                     <span class="section-eyebrow">
                       Core Competencies
                     </span>
-
                     <h2>Skills</h2>
                   </div>
                 </div>
@@ -283,8 +292,7 @@
 
               </section>
 
-              <!-- EXPERIENCE -->
-
+              <!-- PROFESSIONAL EXPERIENCE -->
               <section class="section-card">
 
                 <div class="section-heading">
@@ -292,7 +300,6 @@
                     <span class="section-eyebrow">
                       Work Background
                     </span>
-
                     <h2>Professional Experience</h2>
                   </div>
                 </div>
@@ -313,63 +320,53 @@
 
               </section>
 
+              <!-- DETAILED WORK EXPERIENCE -->
+              <section class="section-card">
 
-<!-- DETAILED WORK EXPERIENCE -->
+                <div class="section-heading">
+                  <div>
+                    <span class="section-eyebrow">
+                      Career History
+                    </span>
+                    <h2>Work Experience Details</h2>
+                  </div>
+                </div>
 
-<section class="section-card">
+                <div
+                  id="candidateExperienceList"
+                  class="candidate-experience-list"
+                >
+                  <p class="candidate-empty-value">
+                    No work experience details available.
+                  </p>
+                </div>
 
-  <div class="section-heading">
-    <div>
-      <span class="section-eyebrow">
-        Career History
-      </span>
+              </section>
 
-      <h2>Work Experience Details</h2>
-    </div>
-  </div>
+              <!-- CERTIFICATIONS -->
+              <section class="section-card">
 
-  <div
-    id="candidateExperienceList"
-    class="candidate-experience-list"
-  >
-    <p class="candidate-empty-value">
-      No work experience details available.
-    </p>
-  </div>
+                <div class="section-heading">
+                  <div>
+                    <span class="section-eyebrow">
+                      Professional Development
+                    </span>
+                    <h2>Certifications &amp; Training</h2>
+                  </div>
+                </div>
 
-</section>
+                <div
+                  id="candidateCertificationsList"
+                  class="candidate-certifications-list"
+                >
+                  <p class="candidate-empty-value">
+                    No certifications available.
+                  </p>
+                </div>
 
-
-<!-- CERTIFICATIONS -->
-
-<section class="section-card">
-
-  <div class="section-heading">
-    <div>
-      <span class="section-eyebrow">
-        Professional Development
-      </span>
-
-      <h2>Certifications & Training</h2>
-    </div>
-  </div>
-
-  <div
-    id="candidateCertificationsList"
-    class="candidate-certifications-list"
-  >
-    <p class="candidate-empty-value">
-      No certifications available.
-    </p>
-  </div>
-
-</section>
-
-              
-              
+              </section>
 
               <!-- JOB PREFERENCES -->
-
               <section class="section-card">
 
                 <div class="section-heading">
@@ -377,7 +374,6 @@
                     <span class="section-eyebrow">
                       Career Preferences
                     </span>
-
                     <h2>Job Preferences</h2>
                   </div>
                 </div>
@@ -401,11 +397,12 @@
             </div>
 
             <!-- RIGHT COLUMN -->
-
-            <aside class="candidate-view-sidebar">
+            <aside
+              class="candidate-view-sidebar"
+              aria-label="Candidate contact and application details"
+            >
 
               <!-- CONTACT DETAILS -->
-
               <section class="section-card">
 
                 <div class="section-heading">
@@ -413,7 +410,6 @@
                     <span class="section-eyebrow">
                       Candidate Information
                     </span>
-
                     <h2>Contact Details</h2>
                   </div>
                 </div>
@@ -440,7 +436,6 @@
               </section>
 
               <!-- APPLICATION DETAILS -->
-
               <section class="section-card">
 
                 <div class="section-heading">
@@ -448,7 +443,6 @@
                     <span class="section-eyebrow">
                       Recruitment Information
                     </span>
-
                     <h2>Application Details</h2>
                   </div>
                 </div>
@@ -474,36 +468,30 @@
 
               </section>
 
+              <!-- PROFESSIONAL LINKS -->
+              <section class="section-card">
 
-<!-- PROFESSIONAL LINKS -->
+                <div class="section-heading">
+                  <div>
+                    <span class="section-eyebrow">
+                      Online Presence
+                    </span>
+                    <h2>Professional Links</h2>
+                  </div>
+                </div>
 
-<section class="section-card">
+                <div
+                  id="candidateSocialLinks"
+                  class="candidate-social-links"
+                >
+                  <p class="candidate-empty-value">
+                    No professional links available.
+                  </p>
+                </div>
 
-  <div class="section-heading">
-    <div>
-      <span class="section-eyebrow">
-        Online Presence
-      </span>
-
-      <h2>Professional Links</h2>
-    </div>
-  </div>
-
-  <div
-    id="candidateSocialLinks"
-    class="candidate-social-links"
-  >
-    <p class="candidate-empty-value">
-      No professional links available.
-    </p>
-  </div>
-
-</section>
-
-              
+              </section>
 
               <!-- EMPLOYER NOTES -->
-
               <section class="section-card">
 
                 <div class="section-heading">
@@ -511,7 +499,6 @@
                     <span class="section-eyebrow">
                       Recruitment Remarks
                     </span>
-
                     <h2>Employer Notes</h2>
                   </div>
                 </div>
@@ -526,7 +513,6 @@
               </section>
 
               <!-- RECRUITMENT ACTIONS -->
-
               <section class="section-card candidate-actions-card">
 
                 <div class="section-heading">
@@ -534,7 +520,6 @@
                     <span class="section-eyebrow">
                       Recruitment Decision
                     </span>
-
                     <h2>Application Actions</h2>
                   </div>
                 </div>
@@ -590,8 +575,10 @@
           </div>
 
           <!-- BOTTOM NAVIGATION -->
-
-          <div class="candidate-view-footer">
+          <nav
+            class="candidate-view-footer"
+            aria-label="Employer navigation"
+          >
 
             <a
               href="application-status.html"
@@ -608,15 +595,15 @@
               Employer Dashboard
             </a>
 
-          </div>
+          </nav>
 
         </div>
 
         <!-- EMPTY / ERROR STATE -->
-
         <div
           id="candidateViewEmpty"
           class="empty-state"
+          role="status"
           hidden
         >
 
@@ -642,6 +629,7 @@
 
   </main>
 
+  <!-- SHARED FOOTER -->
   <div id="siteFooter"></div>
 
   <!-- CORE JS -->
