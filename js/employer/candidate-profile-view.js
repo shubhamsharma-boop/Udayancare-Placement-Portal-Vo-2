@@ -3,10 +3,16 @@
 
 /*
  * =========================================================
- * UCPP V2 — Employer Candidate Profile View v1.1
+ * UCPP V2 — Employer Candidate Profile View v1.2
  *
  * READ-ONLY
  * Employer-authorized candidate digital resume
+ *
+ * v1.2:
+ * - Prioritize secured application metadata
+ * - Display backend-authorized Candidate ID
+ * - Preserve existing experience, certifications,
+ *   professional links and loading states
  *
  * No automatic Viewed status update
  * No Shortlist / Interview / Reject write calls
@@ -121,8 +127,8 @@
 
   function getApplicationId(app) {
     return String(getField(app, [
-      'Application_ID',
-      'applicationId'
+      'applicationId',
+      'Application_ID'
     ])).trim();
   }
 
@@ -142,8 +148,8 @@
 
   function getStatus(app) {
     return String(getField(app, [
-      'Application_Status',
       'applicationStatus',
+      'Application_Status',
       'status'
     ], 'Applied')).trim();
   }
@@ -599,30 +605,12 @@
         : {};
 
     const platforms = [
-      {
-        key: 'linkedIn',
-        label: 'LinkedIn'
-      },
-      {
-        key: 'naukri',
-        label: 'Naukri'
-      },
-      {
-        key: 'indeed',
-        label: 'Indeed'
-      },
-      {
-        key: 'github',
-        label: 'GitHub'
-      },
-      {
-        key: 'portfolio',
-        label: 'Portfolio'
-      },
-      {
-        key: 'otherLink',
-        label: 'Other Link'
-      }
+      { key: 'linkedIn', label: 'LinkedIn' },
+      { key: 'naukri', label: 'Naukri' },
+      { key: 'indeed', label: 'Indeed' },
+      { key: 'github', label: 'GitHub' },
+      { key: 'portfolio', label: 'Portfolio' },
+      { key: 'otherLink', label: 'Other Link' }
     ];
 
     let count = 0;
@@ -676,8 +664,8 @@
     const job = state.job || {};
 
     const name = getField(candidate, [
-      'Full_Name',
       'fullName',
+      'Full_Name',
       'Candidate_Name',
       'candidateName'
     ], getField(application, [
@@ -686,30 +674,34 @@
     ], 'Candidate'));
 
     const education = getField(candidate, [
-      'Education',
-      'education'
+      'education',
+      'Education'
     ]);
 
     const qualification = getField(candidate, [
-      'Qualification',
-      'qualification'
+      'qualification',
+      'Qualification'
     ]);
 
     const experience = getField(candidate, [
-      'Experience',
-      'experience'
+      'experience',
+      'Experience'
     ]);
 
     const city = getField(candidate, [
-      'Current_City',
-      'currentCity'
+      'currentCity',
+      'Current_City'
     ]);
 
     setText('candidateFullName', name);
 
+    // v1.2: Prefer backend-authorized profile ID.
     setText(
       'candidateId',
-      getCandidateId(application)
+      getField(candidate, [
+        'candidateId',
+        'Candidate_ID'
+      ], getCandidateId(application))
     );
 
     setText(
@@ -739,8 +731,8 @@
     setText(
       'candidateAbout',
       getField(candidate, [
-        'About_Candidate',
-        'aboutCandidate'
+        'aboutCandidate',
+        'About_Candidate'
       ], 'Not provided')
     );
 
@@ -750,15 +742,15 @@
     setText(
       'candidatePassingYear',
       getField(candidate, [
-        'Passing_Year',
-        'passingYear'
+        'passingYear',
+        'Passing_Year'
       ])
     );
 
     renderSkills(
       getField(candidate, [
-        'Skills',
-        'skills'
+        'skills',
+        'Skills'
       ])
     );
 
@@ -767,32 +759,32 @@
     setText(
       'candidateEmploymentStatus',
       getField(candidate, [
-        'Employment_Status',
-        'employmentStatus'
+        'employmentStatus',
+        'Employment_Status'
       ])
     );
 
     setText(
       'candidatePreferredLocation',
       getField(candidate, [
-        'Preferred_Location',
-        'preferredLocation'
+        'preferredLocation',
+        'Preferred_Location'
       ])
     );
 
     setText(
       'candidateExpectedSalary',
       getField(candidate, [
-        'Expected_Salary',
-        'expectedSalary'
+        'expectedSalary',
+        'Expected_Salary'
       ])
     );
 
     setText(
       'candidateEmail',
       getField(candidate, [
-        'Email',
-        'email'
+        'email',
+        'Email'
       ], getField(application, [
         'Candidate_Email',
         'candidateEmail'
@@ -802,8 +794,8 @@
     setText(
       'candidateMobile',
       getField(candidate, [
-        'Mobile',
-        'mobile'
+        'mobile',
+        'Mobile'
       ], getField(application, [
         'Candidate_Mobile',
         'candidateMobile'
@@ -818,37 +810,40 @@
         'Job_Title',
         'jobTitle'
       ], getField(application, [
-        'Job_Title',
-        'jobTitle'
+        'jobTitle',
+        'Job_Title'
       ]))
     );
 
+    // v1.2: Prefer secured backend applied date.
     setText(
       'candidateAppliedDate',
       formatDate(getField(application, [
-        'Applied_Date',
         'appliedDate',
+        'Applied_Date',
         'Application_Date',
         'applicationDate'
       ]))
     );
 
+    // v1.2: Prefer secured backend employer remarks.
     setText(
       'candidateEmployerNotes',
       getField(application, [
-        'Employer_Remarks',
         'employerRemarks',
+        'Employer_Remarks',
         'Employer_Notes',
         'employerNotes'
       ], 'No notes available.')
     );
 
+    // v1.2: Prefer secured backend application status.
     setStatus(getStatus(application));
 
     renderPhoto(
       getField(candidate, [
-        'Profile_Photo_URL',
-        'profilePhotoUrl'
+        'profilePhotoUrl',
+        'Profile_Photo_URL'
       ]),
       name
     );
@@ -888,12 +883,11 @@
     show('candidateViewEmpty', false);
 
     try {
+
       /*
        * Step 1:
        * Fetch employer-owned applications.
-       * This is an additional frontend ownership check.
-       *
-       * Backend authorization is mandatory.
+       * Backend authorization remains mandatory.
        */
 
       const applicationsResult = await API.post(
@@ -951,13 +945,6 @@
       /*
        * Step 2:
        * Backend-secured candidate profile endpoint.
-       *
-       * Backend must independently validate:
-       * 1. Employer session
-       * 2. Application ownership
-       * 3. Candidate ID from owned application
-       *
-       * Never call candidate-only profile endpoint here.
        */
 
       const profileResult = await API.post(
@@ -1029,11 +1016,8 @@
           : {};
 
       /*
-       * Backend application details may provide
-       * canonical date/status/notes values.
-       *
-       * Only use them if the application ID matches
-       * the already verified application.
+       * Backend application details are authoritative
+       * when the application ID matches.
        */
 
       const securedApplication = profileData.application;
@@ -1041,6 +1025,7 @@
       if (
         securedApplication &&
         typeof securedApplication === 'object' &&
+        !Array.isArray(securedApplication) &&
         getApplicationId(securedApplication) === applicationId
       ) {
         state.application = {
