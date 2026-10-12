@@ -345,18 +345,23 @@
     ])));
 
     setText(
-      'candidateAppliedDate',
-      formatDate(getField(application, [
-        'Application_Date',
-        'applicationDate'
-      ]))
-    );
+  'candidateAppliedDate',
+  formatDate(getField(application, [
+    'Applied_Date',
+    'appliedDate',
+    'Application_Date',
+    'applicationDate'
+  ]))
+);
 
     setText('candidateEmployerNotes', getField(application, [
-      'Employer_Notes',
-      'employerNotes'
-    ], 'No notes available.'));
+  'Employer_Remarks',
+  'employerRemarks',
+  'Employer_Notes',
+  'employerNotes'
+], 'No notes available.'));
 
+    
     setStatus(getStatus(application));
 
     renderPhoto(getField(candidate, [
