@@ -1,0 +1,288 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Admin Dashboard | UCPP V2</title>
+  <meta name="description"
+        content="Udayan Care Placement Portal administration dashboard.">
+
+  <!-- COMMON CSS -->
+  <link rel="stylesheet" href="../css/common/variables.css">
+  <link rel="stylesheet" href="../css/common/reset.css">
+  <link rel="stylesheet" href="../css/common/base.css">
+  <link rel="stylesheet" href="../css/common/layout.css">
+  <link rel="stylesheet" href="../css/common/components.css">
+  <link rel="stylesheet" href="../css/common/utilities.css">
+  <link rel="stylesheet" href="../css/common/shell.css">
+
+  <!-- PAGE CSS - TO BE CREATED NEXT -->
+  <link rel="stylesheet" href="../css/admin/dashboard.css">
+</head>
+
+<body>
+
+  <div id="siteHeader"></div>
+
+  <main class="admin-dashboard-page">
+
+    <!-- HERO -->
+    <section class="admin-dashboard-hero">
+      <div class="container">
+        <span class="section-eyebrow">Portal Administration</span>
+        <h1>Admin Dashboard</h1>
+        <p>
+          Monitor registrations, job opportunities,
+          recruitment progress and placement outcomes.
+        </p>
+      </div>
+    </section>
+
+    <section class="admin-dashboard-content">
+      <div class="container">
+
+        <div id="adminDashboardAlert"
+             role="alert"
+             hidden></div>
+
+        <!-- DATE FILTERS -->
+        <div class="admin-filter-card">
+
+          <div class="admin-filter-heading">
+            <div>
+              <h2>Reporting Period</h2>
+              <p>Select a duration to view dashboard performance.</p>
+            </div>
+          </div>
+
+          <form id="adminDashboardFilterForm"
+                class="admin-filter-form">
+
+            <div class="admin-filter-field">
+              <label for="adminDatePreset">Duration</label>
+              <select id="adminDatePreset">
+                <option value="all">All Time</option>
+                <option value="today">Today</option>
+                <option value="7days">Last 7 Days</option>
+                <option value="month">This Month</option>
+                <option value="lastmonth">Last Month</option>
+                <option value="custom">Custom Date Range</option>
+              </select>
+            </div>
+
+            <div class="admin-filter-field"
+                 id="adminFromDateWrap"
+                 hidden>
+              <label for="adminFromDate">From Date</label>
+              <input type="date" id="adminFromDate">
+            </div>
+
+            <div class="admin-filter-field"
+                 id="adminToDateWrap"
+                 hidden>
+              <label for="adminToDate">To Date</label>
+              <input type="date" id="adminToDate">
+            </div>
+
+            <button type="submit"
+                    id="adminApplyFilter"
+                    class="btn-primary">
+              Apply Filter
+            </button>
+
+          </form>
+        </div>
+
+        <!-- SUMMARY CARDS -->
+        <div class="admin-section-heading">
+          <h2>Portal Overview</h2>
+          <p id="adminSelectedPeriodLabel">
+            All-time overview
+          </p>
+        </div>
+
+        <div class="admin-stats-grid">
+
+          <article class="admin-stat-card">
+            <span>New Candidates</span>
+            <strong id="adminCandidatesCount">—</strong>
+            <small>Registered during selected period</small>
+          </article>
+
+          <article class="admin-stat-card">
+            <span>New Employers</span>
+            <strong id="adminEmployersCount">—</strong>
+            <small>Registered during selected period</small>
+          </article>
+
+          <article class="admin-stat-card">
+            <span>Jobs Posted</span>
+            <strong id="adminJobsCount">—</strong>
+            <small>Jobs posted during selected period</small>
+          </article>
+
+          <article class="admin-stat-card">
+            <span>Applications</span>
+            <strong id="adminApplicationsCount">—</strong>
+            <small>Applications received during selected period</small>
+          </article>
+
+          <article class="admin-stat-card">
+            <span>Shortlisted</span>
+            <strong id="adminShortlistedCount">—</strong>
+            <small>Recruitment activity</small>
+          </article>
+
+          <article class="admin-stat-card">
+            <span>Interviews</span>
+            <strong id="adminInterviewsCount">—</strong>
+            <small>Recruitment activity</small>
+          </article>
+
+          <article class="admin-stat-card">
+            <span>Rejected</span>
+            <strong id="adminRejectedCount">—</strong>
+            <small>Recruitment activity</small>
+          </article>
+
+          <article class="admin-stat-card">
+            <span>Verified Placements</span>
+            <strong id="adminPlacementsCount">—</strong>
+            <small>Confirmed joining outcomes</small>
+          </article>
+
+        </div>
+
+        <!-- RECRUITMENT PIPELINE -->
+        <section class="admin-panel-card">
+          <div class="admin-panel-heading">
+            <h2>Recruitment Pipeline</h2>
+            <p>Application progress across recruitment stages.</p>
+          </div>
+
+          <div class="admin-pipeline-grid">
+            <div class="admin-pipeline-item">
+              <span>Applied</span>
+              <strong id="adminPipelineApplied">—</strong>
+            </div>
+
+            <div class="admin-pipeline-item">
+              <span>Shortlisted</span>
+              <strong id="adminPipelineShortlisted">—</strong>
+            </div>
+
+            <div class="admin-pipeline-item">
+              <span>Interview</span>
+              <strong id="adminPipelineInterview">—</strong>
+            </div>
+
+            <div class="admin-pipeline-item">
+              <span>Rejected</span>
+              <strong id="adminPipelineRejected">—</strong>
+            </div>
+          </div>
+        </section>
+
+        <!-- DATA EXPORT -->
+        <section class="admin-panel-card">
+
+          <div class="admin-panel-heading">
+            <h2>Download Reports</h2>
+            <p>
+              Export complete records or data from the
+              selected reporting period.
+            </p>
+          </div>
+
+          <form id="adminExportForm"
+                class="admin-export-form">
+
+            <div class="admin-filter-field">
+              <label for="adminExportSegment">Data Segment</label>
+              <select id="adminExportSegment">
+                <option value="all">Complete MIS</option>
+                <option value="candidates">Candidates</option>
+                <option value="employers">Employers</option>
+                <option value="jobs">Jobs</option>
+                <option value="applications">Applications</option>
+                <option value="shortlisted">Shortlisted</option>
+                <option value="interviews">Interviews</option>
+                <option value="placements">Placements</option>
+                <option value="enquiries">Enquiries</option>
+              </select>
+            </div>
+
+            <div class="admin-filter-field">
+              <label for="adminExportPeriod">Export Duration</label>
+              <select id="adminExportPeriod">
+                <option value="selected">Selected Dashboard Period</option>
+                <option value="all">All Time</option>
+              </select>
+            </div>
+
+            <div class="admin-filter-field">
+              <label for="adminExportFormat">Format</label>
+              <select id="adminExportFormat">
+                <option value="xlsx">Excel (.xlsx)</option>
+                <option value="csv">CSV (.csv)</option>
+              </select>
+            </div>
+
+            <button type="submit"
+                    id="adminDownloadReport"
+                    class="btn-primary"
+                    disabled
+                    title="Available after secure export integration">
+              Download Report
+            </button>
+
+          </form>
+
+          <p id="adminExportMessage"
+             class="admin-export-note"
+             aria-live="polite">
+            Secure report downloads will be enabled
+            after backend integration.
+          </p>
+        </section>
+
+        <!-- QUICK ACTIONS -->
+        <section class="admin-panel-card">
+          <div class="admin-panel-heading">
+            <h2>Quick Management</h2>
+            <p>Access administrative modules.</p>
+          </div>
+
+          <div class="admin-quick-links">
+            <a href="candidates.html">Manage Candidates</a>
+            <a href="employers.html">Manage Employers</a>
+            <a href="jobs.html">Manage Jobs</a>
+            <a href="applications.html">Applications</a>
+            <a href="reports.html">Reports & MIS</a>
+            <a href="settings.html">Settings</a>
+          </div>
+        </section>
+
+      </div>
+    </section>
+
+  </main>
+
+  <div id="siteFooter"></div>
+
+  <!-- CORE JS -->
+  <script src="../js/core/config.js"></script>
+  <script src="../js/core/api.js"></script>
+  <script src="../js/core/session.js"></script>
+
+  <!-- COMMON -->
+  <script src="../js/common/header.js"></script>
+  <script src="../js/common/footer.js"></script>
+
+  <!-- PAGE JS - TO BE CREATED NEXT -->
+  <script src="../js/admin/dashboard.js"></script>
+
+</body>
+</html>
