@@ -208,12 +208,24 @@
        */
       const dashboardResponse = await API.getDashboard(savedToken);
 
-      if (!dashboardResponse || dashboardResponse.success !== true) {
-        showMessage(
-          'Dashboard authorization is unavailable. Please refresh and try again.'
-        );
-        return;
-      }
+if (!dashboardResponse || dashboardResponse.success !== true) {
+
+  console.error(
+    '[UCPP ADMIN] Dashboard API failed:',
+    dashboardResponse
+  );
+
+  showMessage(
+    'Dashboard error: ' +
+    (
+      dashboardResponse?.code ||
+      dashboardResponse?.message ||
+      'Unknown API failure'
+    )
+  );
+
+  return;
+}
 
       const dashboardData = extractDashboard(dashboardResponse);
 
