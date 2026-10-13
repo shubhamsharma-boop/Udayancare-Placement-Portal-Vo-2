@@ -1060,3 +1060,157 @@
   }
 
 }
+
+
+/* =========================================================
+   UCPP V2 - FOOTER SOCIAL MEDIA
+   Version 1.1.0
+   ========================================================= */
+
+.site-footer__social {
+  margin-top: 26px;
+}
+
+.site-footer__social-title {
+  margin: 0 0 15px;
+  padding: 0;
+
+  color: #ffffff;
+
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+}
+
+.site-footer__social-links {
+  display: flex;
+  align-items: center;
+  flex-direction: row;
+  flex-wrap: wrap;
+
+  gap: 12px;
+}
+
+.site-footer__social-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  min-height: 42px;
+
+  padding: 0;
+  margin: 0;
+
+  color: #dbeafe;
+
+  background: rgba(59, 130, 246, 0.12);
+
+  border: 1px solid rgba(147, 197, 253, 0.2);
+  border-radius: 50%;
+
+  text-decoration: none;
+
+  transition:
+    background-color 0.25s ease,
+    border-color 0.25s ease,
+    color 0.25s ease,
+    transform 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.site-footer__social-link svg {
+  display: block;
+
+  width: 20px;
+  height: 20px;
+
+  flex-shrink: 0;
+
+  fill: none;
+  stroke: currentColor;
+}
+
+.site-footer__social-link:hover {
+  color: #ffffff;
+
+  background: #2563eb;
+  border-color: #60a5fa;
+
+  transform: translateY(-3px);
+
+  box-shadow:
+    0 8px 20px rgba(37, 99, 235, 0.3);
+
+  text-decoration: none;
+}
+
+.site-footer__social-link:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 4px;
+}
+
+/* Social brand hover colors */
+
+.site-footer__social-link.social-facebook:hover {
+  background: #1877f2;
+}
+
+.site-footer__social-link.social-linkedin:hover {
+  background: #0a66c2;
+}
+
+.site-footer__social-link.social-instagram:hover {
+  background: #c13584;
+}
+
+.site-footer__social-link.social-youtube:hover {
+  background: #ff0033;
+}
+
+.site-footer__social-link.social-whatsapp:hover {
+  background: #128c7e;
+}
+
+/* Tablet */
+
+@media (max-width: 1024px) {
+  .site-footer__social {
+    margin-top: 24px;
+  }
+}
+
+/* Mobile */
+
+@media (max-width: 650px) {
+  .site-footer__social-links {
+    gap: 10px;
+  }
+
+  .site-footer__social-link {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  .site-footer__social-title {
+    font-size: 13px;
+  }
+}
+
+/* Reduced motion accessibility */
+
+@media (prefers-reduced-motion: reduce) {
+  .site-footer__social-link {
+    transition: none;
+  }
+
+  .site-footer__social-link:hover {
+    transform: none;
+  }
+}
+
