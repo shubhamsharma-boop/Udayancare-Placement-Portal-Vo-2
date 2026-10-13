@@ -3,10 +3,18 @@
  * =========================================================
  * UCPP V2 — Admin Dashboard Controller
  * File: js/admin/dashboard.js
- * Version: 5.0 — Live Metrics & Date Filters
+ * Version: 6.0 — Live Dashboard & CSV Reports
  *
- * Secure backend-authorized dashboard.
- * Read-only dashboard operations.
+ * FEATURES:
+ * - Secure admin session validation
+ * - Dashboard KPI metrics
+ * - Recruitment pipeline
+ * - Date filters
+ * - Secure CSV report downloads
+ * - Applied dashboard period synchronization
+ * - Logout
+ *
+ * Candidate/Employer modules are not modified.
  * =========================================================
  */
 
@@ -18,15 +26,40 @@
 
   let token = null;
   let admin = null;
+
   let loggingOut = false;
   let loadingDashboard = false;
+  let exportingReport = false;
 
-  const dashboard = document.getElementById('adminDashboard');
-  const alertBox = document.getElementById('adminDashboardAlert');
-  const logoutButton = document.getElementById('adminLogout');
-  const filterButton = document.getElementById('adminApplyFilter');
-  const filterForm = document.getElementById('adminDashboardFilterForm');
-  const exportForm = document.getElementById('adminExportForm');
+  // Last successfully applied dashboard filter.
+  let appliedPeriod = {
+    period: 'all',
+    label: 'All Time'
+  };
+
+  const dashboard = document.getElementById(
+    'adminDashboard'
+  );
+
+  const alertBox = document.getElementById(
+    'adminDashboardAlert'
+  );
+
+  const logoutButton = document.getElementById(
+    'adminLogout'
+  );
+
+  const filterButton = document.getElementById(
+    'adminApplyFilter'
+  );
+
+  const filterForm = document.getElementById(
+    'adminDashboardFilterForm'
+  );
+
+  const exportForm = document.getElementById(
+    'adminExportForm'
+  );
 
   const $ = (id) => document.getElementById(id);
 
@@ -41,11 +74,25 @@
     verifiedPlacements: 'adminPlacementsCount'
   });
 
+  const AVAILABLE_REPORTS = Object.freeze([
+    'candidates',
+    'employers',
+    'jobs',
+    'applications',
+    'enquiries'
+  ]);
+
+  // =====================================================
+  // UI HELPERS
+  // =====================================================
+
   function setText(id, value) {
     const element = $(id);
 
     if (element) {
-      element.textContent = String(value ?? '—');
+      element.textContent = String(
+        value ?? '—'
+      );
     }
   }
 
@@ -103,13 +150,46 @@
 
     alertBox.textContent = message;
     alertBox.hidden = !message;
-    alertBox.className = 'profile-alert ' + type;
+    alertBox.className =
+      'profile-alert ' + type;
   }
+
+  function setExportMessage(message) {
+    const element = $('adminExportMessage');
+
+    if (element) {
+      element.textContent = message;
+    }
+  }
+
+  function formatNumber(value) {
+    if (
+      value === null ||
+      value === undefined ||
+      value === ''
+    ) {
+      return '—';
+    }
+
+    const number = Number(value);
+
+    if (!Number.isFinite(number)) {
+      return '—';
+    }
+
+    return number.toLocaleString('en-IN');
+  }
+
+  // =====================================================
+  // SESSION MANAGEMENT
+  // =====================================================
 
   function clearSession() {
     try {
       if (CONFIG?.SESSION?.STORAGE_KEY) {
-        sessionStorage.removeItem(CONFIG.SESSION.STORAGE_KEY);
+        sessionStorage.removeItem(
+          CONFIG.SESSION.STORAGE_KEY
+        );
       }
     } catch (_) {}
 
@@ -151,7 +231,9 @@
 
   function redirectLogin() {
     if (CONFIG?.PATHS?.LOGIN) {
-      window.location.replace(CONFIG.PATHS.LOGIN);
+      window.location.replace(
+        CONFIG.PATHS.LOGIN
+      );
     }
   }
 
@@ -171,33 +253,68 @@
       'ADMIN_ACCESS_DENIED',
       'ADMIN_SESSION_REQUIRED',
       'ADMIN_SESSION_EXPIRED'
-    ].includes(String(response?.code || ''));
+    ].includes(
+      String(response?.code || '')
+    );
   }
 
   function extractAdmin(response) {
-    if (response?.admin) return response.admin;
-    if (response?.data?.admin) return response.data.admin;
+    if (response?.admin) {
+      return response.admin;
+    }
+
+    if (response?.data?.admin) {
+      return response.data.admin;
+    }
+
     return null;
   }
 
   function extractDashboard(response) {
-    if (response?.dashboard) return response.dashboard;
+    if (response?.dashboard) {
+      return response.dashboard;
+    }
+
     if (response?.data?.dashboard) {
       return response.data.dashboard;
     }
+
     return null;
   }
 
+  // =====================================================
+  // DATE FILTERS
+  // =====================================================
+
   function localDateKey(date) {
     const year = date.getFullYear();
+
     const month = String(
       date.getMonth() + 1
     ).padStart(2, '0');
+
     const day = String(
       date.getDate()
     ).padStart(2, '0');
 
     return `${year}-${month}-${day}`;
+  }
+
+  function validDateKey(value) {
+    if (
+      !/^\d{4}-\d{2}-\d{2}$/.test(value)
+    ) {
+      return false;
+    }
+
+    const date = new Date(
+      value + 'T00:00:00Z'
+    );
+
+    return (
+      !Number.isNaN(date.getTime()) &&
+      date.toISOString().slice(0, 10) === value
+    );
   }
 
   function getPeriodPayload() {
@@ -206,6 +323,7 @@
     );
 
     const today = new Date();
+    const todayKey = localDateKey(today);
 
     if (preset === 'all') {
       return {
@@ -229,12 +347,10 @@
     }
 
     if (preset === 'today') {
-      const date = localDateKey(today);
-
       return {
         period: 'custom',
-        startDate: date,
-        endDate: date,
+        startDate: todayKey,
+        endDate: todayKey,
         label: 'Today'
       };
     }
@@ -249,7 +365,7 @@
       return {
         period: 'custom',
         startDate: localDateKey(start),
-        endDate: localDateKey(today),
+        endDate: todayKey,
         label: 'Last 7 Days'
       };
     }
@@ -263,15 +379,24 @@
         $('adminToDate')?.value || ''
       ).trim();
 
-      if (!startDate || !endDate) {
+      if (
+        !validDateKey(startDate) ||
+        !validDateKey(endDate)
+      ) {
         throw new Error(
-          'Please select both From Date and To Date.'
+          'Please select valid From and To dates.'
         );
       }
 
       if (startDate > endDate) {
         throw new Error(
           'From Date cannot be after To Date.'
+        );
+      }
+
+      if (endDate > todayKey) {
+        throw new Error(
+          'To Date cannot be in the future.'
         );
       }
 
@@ -283,7 +408,9 @@
       };
     }
 
-    throw new Error('Unsupported reporting period.');
+    throw new Error(
+      'Unsupported reporting period.'
+    );
   }
 
   function updateDateFields() {
@@ -293,59 +420,66 @@
     const fromWrap = $('adminFromDateWrap');
     const toWrap = $('adminToDateWrap');
 
-    if (fromWrap) fromWrap.hidden = !isCustom;
-    if (toWrap) toWrap.hidden = !isCustom;
+    if (fromWrap) {
+      fromWrap.hidden = !isCustom;
+    }
 
-    const today = localDateKey(new Date());
+    if (toWrap) {
+      toWrap.hidden = !isCustom;
+    }
+
+    const today = localDateKey(
+      new Date()
+    );
 
     const fromInput = $('adminFromDate');
     const toInput = $('adminToDate');
 
-    if (fromInput) fromInput.max = today;
-    if (toInput) toInput.max = today;
-  }
-
-  function formatNumber(value) {
-    if (
-      value === null ||
-      value === undefined ||
-      value === ''
-    ) {
-      return '—';
+    if (fromInput) {
+      fromInput.max = today;
     }
 
-    const number = Number(value);
-
-    if (!Number.isFinite(number)) {
-      return '—';
+    if (toInput) {
+      toInput.max = today;
     }
-
-    return number.toLocaleString('en-IN');
   }
+
+  // =====================================================
+  // DASHBOARD METRICS
+  // =====================================================
 
   function clearMetrics() {
-    Object.values(METRIC_IDS).forEach(id => {
-      setText(id, '—');
-    });
+    Object.values(METRIC_IDS).forEach(
+      function (id) {
+        setText(id, '—');
+      }
+    );
 
     [
       'adminPipelineApplied',
       'adminPipelineShortlisted',
       'adminPipelineInterview',
       'adminPipelineRejected'
-    ].forEach(id => setText(id, '—'));
+    ].forEach(function (id) {
+      setText(id, '—');
+    });
   }
 
   function renderMetrics(metrics) {
-    Object.entries(METRIC_IDS).forEach(([key, id]) => {
-      setText(id, formatNumber(metrics[key]));
-    });
+    Object.entries(METRIC_IDS).forEach(
+      function ([key, id]) {
+        setText(
+          id,
+          formatNumber(metrics[key])
+        );
+      }
+    );
 
-    // Backend currently does not provide an Applied-only count.
-setText(
-  'adminPipelineApplied',
-  formatNumber(metrics.applied)
-);
+    setText(
+      'adminPipelineApplied',
+      formatNumber(metrics.applied)
+    );
+
     setText(
       'adminPipelineShortlisted',
       formatNumber(metrics.shortlisted)
@@ -362,8 +496,16 @@ setText(
     );
   }
 
-  async function loadDashboard(periodOptions, initial = false) {
-    if (loadingDashboard || !token) return;
+  async function loadDashboard(
+    periodOptions,
+    initial = false
+  ) {
+    if (
+      loadingDashboard ||
+      !token
+    ) {
+      return;
+    }
 
     loadingDashboard = true;
 
@@ -373,7 +515,9 @@ setText(
     }
 
     if (initial) {
-      showMessage('Loading dashboard metrics...');
+      showMessage(
+        'Loading dashboard metrics...'
+      );
     }
 
     try {
@@ -381,14 +525,20 @@ setText(
         token,
         {
           period: periodOptions.period,
-          startDate: periodOptions.startDate,
-          endDate: periodOptions.endDate
+          startDate: periodOptions.startDate || '',
+          endDate: periodOptions.endDate || ''
         }
       );
 
-      if (!response || response.success !== true) {
+      if (
+        !response ||
+        response.success !== true
+      ) {
         if (isInvalidSession(response)) {
-          denyAccess('Your session has expired.', true);
+          denyAccess(
+            'Your session has expired.',
+            true
+          );
           return;
         }
 
@@ -399,7 +549,8 @@ setText(
         );
       }
 
-      const dashboardData = extractDashboard(response);
+      const dashboardData =
+        extractDashboard(response);
 
       if (
         !dashboardData ||
@@ -411,11 +562,21 @@ setText(
         );
       }
 
-      renderMetrics(dashboardData.metrics);
+      renderMetrics(
+        dashboardData.metrics
+      );
+
+      // Update only after a successful response.
+      appliedPeriod = {
+        period: periodOptions.period,
+        startDate: periodOptions.startDate || '',
+        endDate: periodOptions.endDate || '',
+        label: periodOptions.label
+      };
 
       setText(
         'adminSelectedPeriodLabel',
-        periodOptions.label
+        appliedPeriod.label
       );
 
       removeMessage();
@@ -443,49 +604,371 @@ setText(
 
       if (filterButton) {
         filterButton.disabled = false;
-        filterButton.textContent = 'Apply Filter';
+        filterButton.textContent =
+          'Apply Filter';
       }
     }
   }
 
+  // =====================================================
+  // CSV REPORT DOWNLOAD
+  // =====================================================
+
+  function configureExportForm() {
+    const formatSelect =
+      $('adminExportFormat');
+
+    const segmentSelect =
+      $('adminExportSegment');
+
+    const downloadButton =
+      $('adminDownloadReport');
+
+    if (formatSelect) {
+      const excelOption =
+        formatSelect.querySelector(
+          'option[value="xlsx"]'
+        );
+
+      if (excelOption) {
+        excelOption.disabled = true;
+        excelOption.textContent =
+          'Excel (.xlsx) — Coming Soon';
+      }
+
+      formatSelect.value = 'csv';
+    }
+
+    if (segmentSelect) {
+      Array.from(
+        segmentSelect.options
+      ).forEach(function (option) {
+        if (
+          !AVAILABLE_REPORTS.includes(
+            option.value
+          )
+        ) {
+          option.disabled = true;
+
+          if (
+            !option.textContent.includes(
+              'Coming Soon'
+            )
+          ) {
+            option.textContent +=
+              ' — Coming Soon';
+          }
+        }
+      });
+
+      segmentSelect.value =
+        'candidates';
+    }
+
+    if (downloadButton) {
+      downloadButton.disabled = true;
+      downloadButton.removeAttribute(
+        'title'
+      );
+    }
+
+    setExportMessage(
+      'CSV reports will be available after administrator verification.'
+    );
+  }
+
+  function enableExport() {
+    const button = $('adminDownloadReport');
+
+    if (
+      button &&
+      token &&
+      API &&
+      typeof API.exportData === 'function'
+    ) {
+      button.disabled = false;
+
+      setExportMessage(
+        'Select a report and click Download Report.'
+      );
+    }
+  }
+
+  function disableExport() {
+    const button = $('adminDownloadReport');
+
+    if (button) {
+      button.disabled = true;
+    }
+  }
+
+  function downloadCsv(
+    filename,
+    content
+  ) {
+    const blob = new Blob(
+      [content],
+      {
+        type: 'text/csv;charset=utf-8'
+      }
+    );
+
+    const url =
+      URL.createObjectURL(blob);
+
+    const link =
+      document.createElement('a');
+
+    link.href = url;
+
+    // Never trust server filename as a path.
+    link.download = String(
+      filename || 'UCPP_Report.csv'
+    )
+      .split(/[\\/]/)
+      .pop()
+      .replace(/[^\w.\-]/g, '_');
+
+    link.style.display = 'none';
+
+    document.body.appendChild(link);
+
+    link.click();
+    link.remove();
+
+    window.setTimeout(function () {
+      URL.revokeObjectURL(url);
+    }, 1000);
+  }
+
+  async function handleReportExport(event) {
+    event.preventDefault();
+
+    if (
+      exportingReport ||
+      loadingDashboard ||
+      !token
+    ) {
+      return;
+    }
+
+    if (
+      !API ||
+      typeof API.exportData !== 'function'
+    ) {
+      setExportMessage(
+        'Export API unavailable. Refresh the page.'
+      );
+      return;
+    }
+
+    const segment = String(
+      $('adminExportSegment')?.value || ''
+    ).trim().toLowerCase();
+
+    const format = String(
+      $('adminExportFormat')?.value || 'csv'
+    ).trim().toLowerCase();
+
+    const exportPeriod = String(
+      $('adminExportPeriod')?.value ||
+      'selected'
+    );
+
+    if (
+      !AVAILABLE_REPORTS.includes(segment)
+    ) {
+      setExportMessage(
+        'Please select an available report.'
+      );
+      return;
+    }
+
+    if (format !== 'csv') {
+      setExportMessage(
+        'Only CSV export is currently supported.'
+      );
+      return;
+    }
+
+    const periodOptions =
+      exportPeriod === 'all'
+        ? {
+            period: 'all',
+            startDate: '',
+            endDate: ''
+          }
+        : { ...appliedPeriod };
+
+    const button =
+      $('adminDownloadReport');
+
+    exportingReport = true;
+
+    if (button) {
+      button.disabled = true;
+      button.textContent =
+        'Preparing Report...';
+    }
+
+    setExportMessage(
+      'Generating report. Please wait...'
+    );
+
+    try {
+      const response =
+        await API.exportData(
+          token,
+          {
+            segment,
+            format: 'csv',
+            period: periodOptions.period,
+            startDate:
+              periodOptions.startDate || '',
+            endDate:
+              periodOptions.endDate || ''
+          }
+        );
+
+      if (
+        !response ||
+        response.success !== true
+      ) {
+        if (isInvalidSession(response)) {
+          disableExport();
+
+          denyAccess(
+            'Your session has expired.',
+            true
+          );
+
+          return;
+        }
+
+        throw new Error(
+          response?.message ||
+          response?.code ||
+          'Report generation failed.'
+        );
+      }
+
+      if (
+        typeof response.content !==
+          'string' ||
+        typeof response.filename !==
+          'string' ||
+        !response.filename
+          .toLowerCase()
+          .endsWith('.csv')
+      ) {
+        throw new Error(
+          'Report response is incomplete.'
+        );
+      }
+
+      downloadCsv(
+        response.filename,
+        response.content
+      );
+
+      setExportMessage(
+        'Report download started. ' +
+        formatNumber(response.rowCount) +
+        ' records exported.'
+      );
+
+    } catch (error) {
+      console.error(
+        '[UCPP ADMIN] Export error:',
+        error
+      );
+
+      setExportMessage(
+        error?.message ||
+        'Unable to download report.'
+      );
+
+    } finally {
+      exportingReport = false;
+
+      if (button) {
+        button.textContent =
+          'Download Report';
+
+        button.disabled =
+          !token ||
+          loggingOut;
+      }
+    }
+  }
+
+  // =====================================================
+  // ADMIN AUTHORIZATION
+  // =====================================================
+
   async function verifyAccess() {
     hideDashboard();
+    disableExport();
     clearMetrics();
-    showMessage('Verifying administrator session...');
+
+    showMessage(
+      'Verifying administrator session...'
+    );
 
     if (
       !CONFIG ||
       !API ||
-      typeof API.validateSession !== 'function' ||
-      typeof API.getDashboard !== 'function'
+      typeof API.validateSession !==
+        'function' ||
+      typeof API.getDashboard !==
+        'function'
     ) {
-      showMessage('Admin configuration or API unavailable.');
+      showMessage(
+        'Admin configuration or API unavailable.'
+      );
       return;
     }
 
-    const savedToken = readSession();
+    const savedToken =
+      readSession();
 
     if (!savedToken) {
-      denyAccess('Please sign in.', true);
+      denyAccess(
+        'Please sign in.',
+        true
+      );
       return;
     }
 
     try {
-      const validation = await API.validateSession(savedToken);
+      const validation =
+        await API.validateSession(
+          savedToken
+        );
 
-      if (!validation || validation.success !== true) {
-        if (isInvalidSession(validation)) {
-          denyAccess('Your session has expired.', true);
+      if (
+        !validation ||
+        validation.success !== true
+      ) {
+        if (
+          isInvalidSession(validation)
+        ) {
+          denyAccess(
+            'Your session has expired.',
+            true
+          );
         } else {
           showMessage(
             validation?.message ||
             'Unable to verify your session.'
           );
         }
+
         return;
       }
 
-      const verifiedAdmin = extractAdmin(validation);
+      const verifiedAdmin =
+        extractAdmin(validation);
 
       if (!verifiedAdmin) {
         showMessage(
@@ -497,23 +980,36 @@ setText(
       token = savedToken;
       admin = verifiedAdmin;
 
-      const periodOptions = {
-        period: 'all',
-        label: 'All Time'
-      };
+      await loadDashboard(
+        {
+          period: 'all',
+          label: 'All Time'
+        },
+        true
+      );
 
-      await loadDashboard(periodOptions, true);
+      if (
+        dashboard &&
+        !dashboard.hidden
+      ) {
+        enableExport();
 
-      if (dashboard && !dashboard.hidden) {
         document.dispatchEvent(
-          new CustomEvent('ucpp:admin-authorized', {
-            detail: {
-              admin: {
-                name: String(admin.name || ''),
-                role: String(admin.role || '')
+          new CustomEvent(
+            'ucpp:admin-authorized',
+            {
+              detail: {
+                admin: {
+                  name: String(
+                    admin.name || ''
+                  ),
+                  role: String(
+                    admin.role || ''
+                  )
+                }
               }
             }
-          })
+          )
         );
       }
 
@@ -529,24 +1025,42 @@ setText(
     }
   }
 
+  // =====================================================
+  // LOGOUT
+  // =====================================================
+
   async function logout() {
     if (loggingOut) return;
+
     loggingOut = true;
 
-    const activeToken = token || readSession();
+    const activeToken =
+      token || readSession();
 
+    disableExport();
     hideDashboard();
+
     showMessage('Signing out...');
+
     clearSession();
 
-    if (activeToken && API) {
+    if (
+      activeToken &&
+      API
+    ) {
       try {
-        await API.logout(activeToken);
+        await API.logout(
+          activeToken
+        );
       } catch (_) {}
     }
 
     redirectLogin();
   }
+
+  // =====================================================
+  // EVENTS
+  // =====================================================
 
   function initializeEvents() {
     $('adminDatePreset')?.addEventListener(
@@ -556,47 +1070,63 @@ setText(
 
     filterForm?.addEventListener(
       'submit',
-      async event => {
+      async function (event) {
         event.preventDefault();
 
-        if (!token || loadingDashboard) return;
+        if (
+          !token ||
+          loadingDashboard
+        ) {
+          return;
+        }
 
         try {
-          const periodOptions = getPeriodPayload();
-          await loadDashboard(periodOptions);
+          const periodOptions =
+            getPeriodPayload();
+
+          await loadDashboard(
+            periodOptions
+          );
+
         } catch (error) {
-          showAlert(error.message);
+          showAlert(
+            error.message
+          );
         }
       }
     );
 
     exportForm?.addEventListener(
       'submit',
-      event => event.preventDefault()
+      handleReportExport
     );
 
     if (logoutButton) {
-      logoutButton.addEventListener('click', logout);
+      logoutButton.addEventListener(
+        'click',
+        logout
+      );
     }
 
-    const exportButton = $('adminDownloadReport');
-
-    if (exportButton) {
-      exportButton.disabled = true;
-      exportButton.title =
-        'Secure report export is not enabled yet.';
-    }
+    configureExportForm();
   }
+
+  // =====================================================
+  // INITIALIZATION
+  // =====================================================
 
   function initialize() {
     hideDashboard();
     clearMetrics();
+
     updateDateFields();
     initializeEvents();
     verifyAccess();
   }
 
-  if (document.readyState === 'loading') {
+  if (
+    document.readyState === 'loading'
+  ) {
     document.addEventListener(
       'DOMContentLoaded',
       initialize,
@@ -606,12 +1136,15 @@ setText(
     initialize();
   }
 
-  window.UCPP_ADMIN_DASHBOARD = Object.freeze({
-    validateAccess: verifyAccess,
-    logout: logout,
-    isAuthenticated: function () {
-      return Boolean(token && admin);
-    }
-  });
+  window.UCPP_ADMIN_DASHBOARD =
+    Object.freeze({
+      validateAccess: verifyAccess,
+      logout: logout,
+      isAuthenticated: function () {
+        return Boolean(
+          token && admin
+        );
+      }
+    });
 
 })(window, document);
