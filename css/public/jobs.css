@@ -468,3 +468,10 @@
   }
 
 }
+
+
+/* FIX: Hide loading skeleton and inactive result states */
+.jobs-page [hidden] {
+  display: none !important;
+}
+
