@@ -2,24 +2,25 @@
 /**
  * UCPP V2 — Admin Login Controller
  * File: js/admin/login.js
- * Version: 1.0
+ * Version: 2.0
+ *
+ * PHASE 1 — Secure Session Handoff
  *
  * Features:
- * - Email/password form validation
+ * - Login form validation
  * - Password visibility toggle
- * - Remember email (not password)
+ * - Remember email only
  * - Loading and error states
- * - Authenticated dashboard redirect
+ * - Backend session validation
+ * - Same-tab sessionStorage handoff
+ * - Dashboard redirect
  *
- * IMPORTANT:
- * - Does not store passwords.
- * - Does not automatically persist session tokens.
- * - Session token stays in memory only.
- * - Backend controls authentication.
- *
- * Dependency:
- * - admin-config.js
- * - admin-api.js
+ * SECURITY:
+ * - Password is never stored.
+ * - Token is never added to a URL.
+ * - Token is never stored in localStorage.
+ * - Authentication is verified by the backend.
+ * - Login remains disabled server-side until approved.
  */
 
 (function (window, document) {
@@ -52,15 +53,17 @@
     !submitButton ||
     !alertBox
   ) {
-    console.error('Admin login form elements missing.');
+    console.error('Required admin login elements are missing.');
     return;
   }
 
   let isSubmitting = false;
-  let activeSessionToken = null;
 
   function showAlert(message, type = 'error') {
-    alertBox.textContent = String(message || 'An error occurred.');
+    alertBox.textContent = String(
+      message || 'Something went wrong.'
+    );
+
     alertBox.className = 'login-alert';
 
     if (type === 'success' || type === 'info') {
@@ -72,31 +75,37 @@
 
   function clearAlert() {
     alertBox.textContent = '';
-    alertBox.hidden = true;
     alertBox.className = 'login-alert';
+    alertBox.hidden = true;
   }
 
   function setLoading(loading) {
-    isSubmitting = loading;
+    isSubmitting = Boolean(loading);
 
-    submitButton.disabled = loading;
-    emailInput.disabled = loading;
-    passwordInput.disabled = loading;
+    submitButton.disabled = isSubmitting;
+    emailInput.disabled = isSubmitting;
+    passwordInput.disabled = isSubmitting;
 
     if (rememberEmail) {
-      rememberEmail.disabled = loading;
+      rememberEmail.disabled = isSubmitting;
     }
 
     if (buttonText) {
-      buttonText.textContent = loading ? 'Signing in...' : 'Sign In';
+      buttonText.textContent = isSubmitting
+        ? 'Signing in...'
+        : 'Sign In';
     }
 
     if (buttonSpinner) {
-      buttonSpinner.hidden = !loading;
+      buttonSpinner.hidden = !isSubmitting;
     }
 
     if (buttonArrow) {
-      buttonArrow.hidden = loading;
+      buttonArrow.hidden = isSubmitting;
+    }
+
+    if (togglePassword) {
+      togglePassword.disabled = isSubmitting;
     }
   }
 
@@ -104,24 +113,31 @@
     const email = emailInput.value.trim();
     const password = passwordInput.value;
 
-    emailInput.setAttribute('aria-invalid', 'false');
-    passwordInput.setAttribute('aria-invalid', 'false');
+    emailInput.removeAttribute('aria-invalid');
+    passwordInput.removeAttribute('aria-invalid');
 
     if (!email || !emailInput.validity.valid) {
       emailInput.setAttribute('aria-invalid', 'true');
+
       showAlert('Please enter a valid email address.');
       emailInput.focus();
+
       return null;
     }
 
     if (!password || password.length < 12) {
       passwordInput.setAttribute('aria-invalid', 'true');
+
       showAlert('Please enter your administrator password.');
       passwordInput.focus();
+
       return null;
     }
 
-    return { email, password };
+    return {
+      email: email,
+      password: password
+    };
   }
 
   function restoreRememberedEmail() {
@@ -138,7 +154,7 @@
         }
       }
     } catch (_) {
-      // Storage may be disabled by browser policy.
+      // Browser storage may be unavailable.
     }
   }
 
@@ -155,12 +171,70 @@
         );
       }
     } catch (_) {
-      // Login must not depend on localStorage availability.
+      // Remember-email is optional.
     }
   }
 
-  function getSafeDashboardPath() {
-    return CONFIG.PATHS.DASHBOARD;
+  function saveSession(token, expiresIn) {
+    const normalizedToken = String(token || '').trim();
+
+    if (!normalizedToken) {
+      throw new Error('Invalid administrator session token.');
+    }
+
+    const serverLifetime = Number(expiresIn);
+
+    const configuredLifetime = Number(
+      CONFIG.SESSION.MAX_AGE_SECONDS
+    );
+
+    const maxLifetime = (
+      Number.isFinite(configuredLifetime) &&
+      configuredLifetime > 0
+    ) ? configuredLifetime : 21600;
+
+    const lifetime = (
+      Number.isFinite(serverLifetime) &&
+      serverLifetime > 0
+    ) ? Math.min(serverLifetime, maxLifetime) : maxLifetime;
+
+    const session = {
+      token: normalizedToken,
+      expiresAt: Date.now() + lifetime * 1000
+    };
+
+    try {
+      window.sessionStorage.setItem(
+        CONFIG.SESSION.STORAGE_KEY,
+        JSON.stringify(session)
+      );
+    } catch (_) {
+      throw new Error(
+        'Unable to establish a browser session. Please enable session storage.'
+      );
+    }
+  }
+
+  function clearSession() {
+    try {
+      window.sessionStorage.removeItem(
+        CONFIG.SESSION.STORAGE_KEY
+      );
+    } catch (_) {
+      // No stored session to clear.
+    }
+  }
+
+  async function revokeSession(token) {
+    if (!token) {
+      return;
+    }
+
+    try {
+      await API.logout(token);
+    } catch (_) {
+      // Revocation could not be confirmed.
+    }
   }
 
   async function handleLogin(event) {
@@ -180,6 +254,8 @@
 
     setLoading(true);
 
+    let issuedToken = '';
+
     try {
       const result = await API.login(
         credentials.email,
@@ -195,42 +271,35 @@
         return;
       }
 
-      /*
-       * Login succeeds only if the backend provides
-       * a valid-looking session token.
-       *
-       * The token is NOT stored in localStorage.
-       */
-      const token = String(
-        result.token ||
-        (result.data && result.data.token) ||
-        ''
+      const sessionData = (
+        result.data &&
+        typeof result.data === 'object'
+      ) ? result.data : result;
+
+      issuedToken = String(
+        sessionData.token || ''
       ).trim();
 
-      if (!token) {
-        showAlert(
-          'Login response is incomplete. Please contact the administrator.'
+      if (!issuedToken) {
+        throw new Error(
+          'Login response did not include a session token.'
         );
-        return;
       }
 
-      activeSessionToken = token;
-
-      /*
-       * Verify the issued session with the backend.
-       * A successful login response alone is not enough.
-       */
       const validation = await API.validateSession(
-        activeSessionToken
+        issuedToken
       );
 
       if (!validation || validation.success !== true) {
-        activeSessionToken = null;
-        showAlert(
-          'Unable to verify your session. Please sign in again.'
+        throw new Error(
+          'Session verification failed. Please sign in again.'
         );
-        return;
       }
+
+      saveSession(
+        issuedToken,
+        sessionData.expiresIn
+      );
 
       updateRememberedEmail(credentials.email);
 
@@ -241,25 +310,14 @@
         'success'
       );
 
-      /*
-       * SECURITY NOTE:
-       *
-       * Session token is intentionally memory-only.
-       * A full-page redirect loses JavaScript memory.
-       *
-       * Do not place the token in URL parameters.
-       * Do not store it in localStorage without a
-       * reviewed session security design.
-       *
-       * Dashboard redirect remains disabled until
-       * secure session handoff is implemented.
-       */
-      showAlert(
-        'Authentication verified. Dashboard session handoff is pending security integration.',
-        'info'
+      window.location.assign(
+        CONFIG.PATHS.DASHBOARD
       );
 
     } catch (error) {
+      clearSession();
+      await revokeSession(issuedToken);
+
       showAlert(
         error && error.message
           ? error.message
@@ -267,7 +325,6 @@
       );
 
     } finally {
-      activeSessionToken = null;
       passwordInput.value = '';
       setLoading(false);
     }
@@ -279,18 +336,24 @@
     }
 
     togglePassword.addEventListener('click', function () {
-      const showing = passwordInput.type === 'text';
+      const isVisible = passwordInput.type === 'text';
 
-      passwordInput.type = showing ? 'password' : 'text';
+      passwordInput.type = isVisible
+        ? 'password'
+        : 'text';
 
-      togglePassword.textContent = showing ? 'Show' : 'Hide';
+      togglePassword.textContent = isVisible
+        ? 'Show'
+        : 'Hide';
+
       togglePassword.setAttribute(
         'aria-label',
-        showing ? 'Show password' : 'Hide password'
+        isVisible ? 'Show password' : 'Hide password'
       );
+
       togglePassword.setAttribute(
         'aria-pressed',
-        String(!showing)
+        String(!isVisible)
       );
     });
   }
@@ -309,7 +372,9 @@
 
   function initialize() {
     if (yearElement) {
-      yearElement.textContent = String(new Date().getFullYear());
+      yearElement.textContent = String(
+        new Date().getFullYear()
+      );
     }
 
     restoreRememberedEmail();
@@ -319,6 +384,14 @@
     form.addEventListener('submit', handleLogin);
   }
 
-  initialize();
+  if (document.readyState === 'loading') {
+    document.addEventListener(
+      'DOMContentLoaded',
+      initialize,
+      { once: true }
+    );
+  } else {
+    initialize();
+  }
 
 })(window, document);
