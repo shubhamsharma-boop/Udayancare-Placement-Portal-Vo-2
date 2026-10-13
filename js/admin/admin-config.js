@@ -22,7 +22,7 @@
    * Do not use the Apps Script editor URL.
    * Use the deployed URL ending in /exec.
    */
-  const API_URL = '';
+  const API_URL: 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec',
 
   const SESSION = Object.freeze({
     STORAGE_KEY: 'ucpp_v2_admin_session',
