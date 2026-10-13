@@ -21,7 +21,8 @@
    *
    * URL must end with /exec.
    */
-  const API_URL = 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec';
+
+const API_URL = 'https://script.google.com/macros/s/AKfycbzP1iAr9ZGpbkTefWnmy6s8cQ81at4bCSMnhDdp23Gjlo9cLbQwrtFTH4ierh6S6GAb/exec';
 
   const SESSION = Object.freeze({
     STORAGE_KEY: 'ucpp_v2_admin_session',
