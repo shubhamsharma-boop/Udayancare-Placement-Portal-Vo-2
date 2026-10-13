@@ -2,7 +2,7 @@
 /**
  * UCPP V2 — Admin Frontend Configuration
  * File: js/admin/admin-config.js
- * Version: 1.0
+ * Version: 1.1
  *
  * Centralized configuration for Admin Portal.
  *
@@ -16,13 +16,12 @@
   'use strict';
 
   /**
-   * Replace this value with the approved
-   * UCPP V2 Google Apps Script Web App URL.
+   * Paste your actual deployed UCPP V2
+   * Google Apps Script Web App URL below.
    *
-   * Do not use the Apps Script editor URL.
-   * Use the deployed URL ending in /exec.
+   * URL must end with /exec.
    */
-  const API_URL: 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec',
+  const API_URL = 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec';
 
   const SESSION = Object.freeze({
     STORAGE_KEY: 'ucpp_v2_admin_session',
@@ -49,7 +48,7 @@
   const CONFIG = Object.freeze({
     APP_NAME: 'Udayan Care Placement Portal',
     MODULE_NAME: 'UCPP Admin Portal',
-    VERSION: '1.0.0',
+    VERSION: '1.1.0',
     API_URL: API_URL.trim(),
     SESSION,
     PATHS,
