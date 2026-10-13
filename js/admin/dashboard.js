@@ -666,17 +666,54 @@
       const dashboardResponse =
         await API.getDashboard(normalizedToken);
 
-      if (
-        !dashboardResponse ||
-        dashboardResponse.success !== true
-      ) {
-        denyAccess(
-          'Dashboard access was not authorized.',
-          true
-        );
-        return false;
-      }
+      
+if (
+  !dashboardResponse ||
+  dashboardResponse.success !== true
+) {
+  const code = dashboardResponse
+    ? String(dashboardResponse.code || '')
+    : '';
 
+  const sessionErrors = [
+    'INVALID_ADMIN_SESSION',
+    'ADMIN_SESSION_REQUIRED',
+    'ADMIN_ACCESS_DENIED',
+    'ADMIN_IDENTITY_INVALID'
+  ];
+
+  if (sessionErrors.includes(code)) {
+    denyAccess(
+      'Your administrator session has expired or access was denied.',
+      true
+    );
+    return false;
+  }
+
+  /*
+   * A dashboard data error is not automatically
+   * an authentication failure.
+   *
+   * Do not delete a valid session.
+   */
+  sessionToken = normalizedToken;
+  authenticatedAdmin = admin;
+  dashboardData = null;
+
+  removeAccessMessage();
+  showProtectedContent();
+  resetMetrics();
+
+  showAlert(
+    dashboardResponse && dashboardResponse.message
+      ? dashboardResponse.message
+      : 'Dashboard data is temporarily unavailable.'
+  );
+
+  return true;
+}
+
+      
       const dashboard = extractDashboard(
         dashboardResponse
       );
@@ -741,13 +778,24 @@
 
       return true;
 
-    } catch (_) {
-      denyAccess(
-        'Unable to verify administrator access.',
-        true
-      );
-      return false;
-    }
+} catch (_) {
+  /*
+   * Network errors must not be treated as
+   * proof that the session is invalid.
+   *
+   * Keep protected content hidden because
+   * dashboard authorization was not confirmed.
+   */
+  hideProtectedContent();
+
+  showAccessMessage(
+    'Unable to verify dashboard access. Please refresh and try again.'
+  );
+
+  return false;
+}
+
+   
   }
 
   async function logout() {
