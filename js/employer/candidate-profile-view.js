@@ -1,41 +1,50 @@
+
 'use strict';
+
 /*
- * =========================================================
- * UCPP V2 — Employer Candidate Profile View v1.3
+ * UCPP V2 - Employer Candidate Profile View v1.4
  *
- * READ-ONLY
- * Employer-authorized candidate digital resume
+ * Candidate Digital Resume + Recruitment Decisions
  *
- * v1.3:
- * - Single secured profile API request
- * - Verify authorized application and profile identity
- * - Preserve read-only rendering and loading states
+ * - Authorized candidate profile loading
+ * - Shortlist / Interview / Reject actions
+ * - Confirmation before rejection
+ * - Duplicate-click protection
+ * - Backend response validation
+ * - Status refresh after successful update
+ * - No automatic Viewed status update
  *
- * No automatic Viewed status update
- * No Shortlist / Interview / Reject write calls
- * No production data modification
- * =========================================================
+ * Backend write permission remains independently controlled.
  */
+
 (function () {
+
   const API = window.UCPP_API;
   const SESSION = window.UCPP_SESSION_MANAGER;
   const $ = (id) => document.getElementById(id);
+
   const state = {
     sessionToken: '',
     application: null,
     candidate: null,
-    job: null,
     experience: [],
     certifications: [],
-    socialLinks: {}
+    socialLinks: {},
+    updating: false,
+    profileLoaded: false
   };
-  /* =======================================================
-   * COMMON HELPERS
-   * ======================================================= */
+
+  const ACTIONS = {
+    candidateShortlistButton: 'Shortlisted',
+    candidateInterviewButton: 'Interview',
+    candidateRejectButton: 'Rejected'
+  };
+
+  /* ===================== HELPERS ===================== */
+
   function getField(object, keys, fallback = '') {
-    if (!object || typeof object !== 'object') {
-      return fallback;
-    }
+    if (!object || typeof object !== 'object') return fallback;
+
     for (const key of keys) {
       const value = object[key];
       if (
@@ -46,11 +55,14 @@
         return value;
       }
     }
+
     return fallback;
   }
+
   function setText(id, value) {
     const element = $(id);
     if (!element) return;
+
     element.textContent =
       value === undefined ||
       value === null ||
@@ -58,25 +70,37 @@
         ? '—'
         : String(value);
   }
+
   function show(id, visible) {
     const element = $(id);
-    if (element) {
-      element.hidden = !visible;
-    }
+    if (element) element.hidden = !visible;
   }
+
   function showAlert(message) {
-    const alert = $('candidateViewAlert');
-    if (!alert) return;
-    alert.textContent = message;
-    alert.className = 'profile-alert error';
-    alert.hidden = false;
+    const element = $('candidateViewAlert');
+    if (!element) return;
+
+    element.textContent = message;
+    element.className = 'profile-alert error';
+    element.hidden = false;
   }
+
   function clearAlert() {
-    const alert = $('candidateViewAlert');
-    if (!alert) return;
-    alert.textContent = '';
-    alert.hidden = true;
+    const element = $('candidateViewAlert');
+    if (!element) return;
+
+    element.textContent = '';
+    element.hidden = true;
   }
+
+  function setActionMessage(message, type = 'info') {
+    const element = $('candidateActionMessage');
+    if (!element) return;
+
+    element.textContent = message;
+    element.dataset.state = type;
+  }
+
   function isInvalidSession(result) {
     return [
       'INVALID_SESSION',
@@ -86,18 +110,21 @@
       'UNAUTHORIZED'
     ].includes(String(result?.code || '').toUpperCase());
   }
+
   function getApplicationId(app) {
     return String(getField(app, [
       'applicationId',
       'Application_ID'
     ])).trim();
   }
+
   function getCandidateId(app) {
     return String(getField(app, [
       'Candidate_ID',
       'candidateId'
     ])).trim();
   }
+
   function getStatus(app) {
     return String(getField(app, [
       'applicationStatus',
@@ -105,168 +132,352 @@
       'status'
     ], 'Applied')).trim();
   }
+
   function formatDate(value) {
-    if (
-      value === undefined ||
-      value === null ||
-      value === ''
-    ) {
+    if (value === undefined || value === null || value === '') {
       return '—';
     }
+
     const date = new Date(value);
+
     if (Number.isNaN(date.getTime())) {
       return String(value);
     }
+
     return date.toLocaleDateString('en-IN', {
       day: '2-digit',
       month: 'short',
       year: 'numeric'
     });
   }
+
   function getSafeHttpsUrl(value) {
     const raw = String(value || '').trim();
     if (!raw) return null;
+
     try {
       const url = new URL(raw);
-      if (url.protocol !== 'https:') {
-        return null;
-      }
-      if (!url.hostname) {
-        return null;
-      }
-      return url.href;
-    } catch (error) {
+      return url.protocol === 'https:' && url.hostname
+        ? url.href
+        : null;
+    } catch (_) {
       return null;
     }
   }
+
   function createEmptyMessage(message) {
     const element = document.createElement('p');
     element.className = 'candidate-empty-value';
     element.textContent = message;
     return element;
   }
+
   function isCurrentlyWorking(value) {
-    if (value === true || value === 1) {
-      return true;
-    }
+    if (value === true || value === 1) return true;
+
     return [
-      'yes',
-      'true',
-      '1',
-      'current',
-      'present'
+      'yes', 'true', '1', 'current', 'present'
     ].includes(String(value || '').trim().toLowerCase());
   }
+
   function setStatus(status) {
+    const value = String(status || 'Applied').trim();
+    const normalized = value.toLowerCase();
+
+    const allowed = [
+      'applied',
+      'viewed',
+      'shortlisted',
+      'interview',
+      'rejected'
+    ];
+
     const element = $('candidateApplicationStatus');
+
     if (element) {
-      const normalized = String(status || 'Applied')
-        .trim()
-        .toLowerCase();
-      const allowed = [
-        'applied',
-        'viewed',
-        'shortlisted',
-        'interview',
-        'rejected'
-      ];
       element.className =
         'status-badge ' +
         (allowed.includes(normalized) ? normalized : '');
-      element.textContent = status || 'Applied';
+
+      element.textContent = value;
     }
-    setText('candidateSidebarStatus', status || 'Applied');
+
+    setText('candidateSidebarStatus', value);
   }
-  /* =======================================================
-   * SKILLS
-   * ======================================================= */
+
+  /* ================= RECRUITMENT ACTIONS ================= */
+
+  function refreshActionButtons() {
+    const currentStatus = getStatus(state.application);
+    const rejected = currentStatus === 'Rejected';
+
+    Object.entries(ACTIONS).forEach(([id, targetStatus]) => {
+      const button = $(id);
+      if (!button) return;
+
+      const sameStatus = currentStatus === targetStatus;
+
+      button.disabled =
+        !state.profileLoaded ||
+        state.updating ||
+        rejected ||
+        sameStatus;
+
+      button.setAttribute(
+        'aria-busy',
+        state.updating ? 'true' : 'false'
+      );
+
+      button.title = rejected
+        ? 'Rejected applications cannot be reopened'
+        : sameStatus
+          ? 'Candidate already has this status'
+          : '';
+    });
+
+    if (!state.profileLoaded || state.updating) return;
+
+    if (rejected) {
+      setActionMessage(
+        'This application has been rejected. Further status changes are disabled.',
+        'info'
+      );
+    } else {
+      setActionMessage(
+        'Select a recruitment action to update the application status.',
+        'info'
+      );
+    }
+  }
+
+  async function updateRecruitmentStatus(newStatus) {
+    if (
+      state.updating ||
+      !state.profileLoaded ||
+      !state.application
+    ) {
+      return;
+    }
+
+    const applicationId = getApplicationId(state.application);
+    const currentStatus = getStatus(state.application);
+
+    if (!applicationId) {
+      setActionMessage('Application ID is missing.', 'error');
+      return;
+    }
+
+    if (
+      currentStatus === 'Rejected' ||
+      currentStatus === newStatus
+    ) {
+      refreshActionButtons();
+      return;
+    }
+
+    if (newStatus === 'Rejected') {
+      const confirmed = window.confirm(
+        'Are you sure you want to reject this candidate?\n\n' +
+        'Rejected applications cannot be reopened automatically.'
+      );
+
+      if (!confirmed) return;
+    }
+
+    state.updating = true;
+    refreshActionButtons();
+
+    setActionMessage(
+      'Updating application status...',
+      'info'
+    );
+
+    try {
+      const result = await API.post(
+        'updateEmployerApplicationStatus',
+        {
+          sessionToken: state.sessionToken,
+          applicationId: applicationId,
+          status: newStatus
+        }
+      );
+
+      if (result?.success !== true) {
+        if (isInvalidSession(result)) {
+          window.location.replace('login.html');
+          return;
+        }
+
+        throw new Error(
+          result?.message ||
+          'Unable to update application status.'
+        );
+      }
+
+      const returnedId = String(
+        result.data?.applicationId || ''
+      ).trim();
+
+      const returnedStatus = String(
+        result.data?.status || ''
+      ).trim();
+
+      if (
+        returnedId !== applicationId ||
+        returnedStatus !== newStatus
+      ) {
+        throw new Error(
+          'Status update response could not be verified. Refresh the page to check the latest status.'
+        );
+      }
+
+      // Update UI only after verified backend success.
+      state.application.Application_Status = returnedStatus;
+      state.application.applicationStatus = returnedStatus;
+
+      setStatus(returnedStatus);
+
+      setActionMessage(
+        'Application status updated to ' + returnedStatus + '.',
+        'success'
+      );
+
+    } catch (error) {
+      setActionMessage(
+        error?.message ||
+        'Unable to update application status.',
+        'error'
+      );
+
+    } finally {
+      state.updating = false;
+
+      // Preserve the success/error message.
+      const messageElement = $('candidateActionMessage');
+      const message = messageElement?.textContent || '';
+      const messageType = messageElement?.dataset.state || 'info';
+
+      refreshActionButtons();
+
+      if (messageType === 'success' || messageType === 'error') {
+        setActionMessage(message, messageType);
+      }
+    }
+  }
+
+  function initializeRecruitmentActions() {
+    Object.entries(ACTIONS).forEach(([id, status]) => {
+      const button = $(id);
+      if (!button) return;
+
+      button.disabled = true;
+
+      button.addEventListener('click', () => {
+        updateRecruitmentStatus(status);
+      });
+    });
+  }
+
+  /* ===================== SKILLS ===================== */
+
   function renderSkills(value) {
     const container = $('candidateSkills');
     if (!container) return;
+
     container.replaceChildren();
+
     const skills = Array.isArray(value)
       ? value
       : String(value || '')
           .split(/[,;\n]+/)
-          .map((item) => item.trim())
+          .map(item => item.trim())
           .filter(Boolean);
+
     if (!skills.length) {
-      container.appendChild(
-        createEmptyMessage('Not provided')
-      );
+      container.appendChild(createEmptyMessage('Not provided'));
       return;
     }
-    skills.forEach((skill) => {
+
+    skills.forEach(skill => {
       const tag = document.createElement('span');
       tag.className = 'candidate-skill-tag';
       tag.textContent = String(skill);
       container.appendChild(tag);
     });
   }
-  /* =======================================================
-   * PROFILE PHOTO
-   * ======================================================= */
+
+  /* ===================== PHOTO ===================== */
+
   function renderPhoto(url, name) {
     const image = $('candidateProfilePhoto');
     const fallback = $('candidateAvatarFallback');
+
     const initials = String(name || 'Candidate')
       .trim()
       .split(/\s+/)
       .filter(Boolean)
       .slice(0, 2)
-      .map((part) => part.charAt(0).toUpperCase())
+      .map(part => part.charAt(0).toUpperCase())
       .join('') || 'C';
+
     if (fallback) {
       fallback.textContent = initials;
       fallback.hidden = false;
     }
+
     if (!image) return;
+
     image.hidden = true;
     image.removeAttribute('src');
+
     const photoUrl = getSafeHttpsUrl(url);
     if (!photoUrl) return;
+
     image.onload = () => {
       image.hidden = false;
-      if (fallback) {
-        fallback.hidden = true;
-      }
+      if (fallback) fallback.hidden = true;
     };
+
     image.onerror = () => {
       image.hidden = true;
-      if (fallback) {
-        fallback.hidden = false;
-      }
+      if (fallback) fallback.hidden = false;
     };
+
     image.src = photoUrl;
   }
-  /* =======================================================
-   * WORK EXPERIENCE DETAILS
-   * ======================================================= */
+
+  /* ===================== EXPERIENCE ===================== */
+
   function renderExperienceDetails() {
     const container = $('candidateExperienceList');
     if (!container) return;
+
     container.replaceChildren();
+
     const experiences = Array.isArray(state.experience)
       ? state.experience
       : [];
+
     if (!experiences.length) {
       container.appendChild(
-        createEmptyMessage(
-          'No work experience details available.'
-        )
+        createEmptyMessage('No work experience details available.')
       );
       return;
     }
-    experiences.forEach((item) => {
+
+    experiences.forEach(item => {
       if (!item || typeof item !== 'object') return;
+
       const card = document.createElement('div');
       card.className = 'candidate-experience-item';
+
       const title = document.createElement('h3');
       title.textContent = getField(
         item,
         ['jobTitle', 'Job_Title'],
         'Job title not provided'
       );
+
       const company = document.createElement('p');
       company.className = 'candidate-experience-company';
       company.textContent = getField(
@@ -274,96 +485,106 @@
         ['companyName', 'Company_Name'],
         'Company not provided'
       );
+
       const details = document.createElement('p');
       details.className = 'candidate-experience-meta';
-      const dateParts = [];
+
+      const parts = [];
+
       const startDate = getField(item, [
-        'startDate',
-        'Start_Date'
+        'startDate', 'Start_Date'
       ]);
+
       const endDate = getField(item, [
-        'endDate',
-        'End_Date'
+        'endDate', 'End_Date'
       ]);
+
       const currentlyWorking = getField(item, [
-        'currentlyWorking',
-        'Currently_Working'
+        'currentlyWorking', 'Currently_Working'
       ]);
-      if (startDate || endDate || isCurrentlyWorking(currentlyWorking)) {
-        const from = startDate
-          ? formatDate(startDate)
-          : '—';
-        const to = isCurrentlyWorking(currentlyWorking)
-          ? 'Present'
-          : formatDate(endDate);
-        dateParts.push(from + ' – ' + to);
+
+      if (
+        startDate ||
+        endDate ||
+        isCurrentlyWorking(currentlyWorking)
+      ) {
+        parts.push(
+          (startDate ? formatDate(startDate) : '—') +
+          ' – ' +
+          (isCurrentlyWorking(currentlyWorking)
+            ? 'Present'
+            : formatDate(endDate))
+        );
       }
+
       const employmentType = getField(item, [
-        'employmentType',
-        'Employment_Type'
+        'employmentType', 'Employment_Type'
       ]);
+
       const location = getField(item, [
-        'location',
-        'Location'
+        'location', 'Location'
       ]);
-      if (employmentType) {
-        dateParts.push(String(employmentType));
-      }
-      if (location) {
-        dateParts.push(String(location));
-      }
-      details.textContent = dateParts.join(' | ');
-      const responsibilities = getField(item, [
-        'responsibilities',
-        'Responsibilities'
-      ]);
+
+      if (employmentType) parts.push(String(employmentType));
+      if (location) parts.push(String(location));
+
+      details.textContent = parts.join(' | ');
+
       const description = document.createElement('p');
       description.className = 'candidate-experience-description';
-      description.textContent =
-        responsibilities || 'No responsibilities provided.';
+      description.textContent = getField(
+        item,
+        ['responsibilities', 'Responsibilities'],
+        'No responsibilities provided.'
+      );
+
       card.append(title, company);
-      if (details.textContent) {
-        card.appendChild(details);
-      }
+
+      if (details.textContent) card.appendChild(details);
+
       card.appendChild(description);
       container.appendChild(card);
     });
+
     if (!container.children.length) {
       container.appendChild(
-        createEmptyMessage(
-          'No work experience details available.'
-        )
+        createEmptyMessage('No work experience details available.')
       );
     }
   }
-  /* =======================================================
-   * CERTIFICATIONS & TRAINING
-   * ======================================================= */
+
+  /* ===================== CERTIFICATIONS ===================== */
+
   function renderCertifications() {
     const container = $('candidateCertificationsList');
     if (!container) return;
+
     container.replaceChildren();
+
     const certifications = Array.isArray(state.certifications)
       ? state.certifications
       : [];
+
     if (!certifications.length) {
       container.appendChild(
-        createEmptyMessage(
-          'No certifications available.'
-        )
+        createEmptyMessage('No certifications available.')
       );
       return;
     }
-    certifications.forEach((item) => {
+
+    certifications.forEach(item => {
       if (!item || typeof item !== 'object') return;
+
       const card = document.createElement('div');
       card.className = 'candidate-certification-item';
+
       const title = document.createElement('h3');
       title.textContent = getField(
         item,
         ['certificationName', 'Certification_Name'],
         'Certification'
       );
+
       const organization = document.createElement('p');
       organization.className = 'candidate-certification-org';
       organization.textContent = getField(
@@ -371,50 +592,51 @@
         ['issuingOrganization', 'Issuing_Organization'],
         'Organization not provided'
       );
+
       card.append(title, organization);
-      const dateParts = [];
+
+      const parts = [];
+
       const issueDate = getField(item, [
-        'issueDate',
-        'Issue_Date'
+        'issueDate', 'Issue_Date'
       ]);
+
       const expiryDate = getField(item, [
-        'expiryDate',
-        'Expiry_Date'
+        'expiryDate', 'Expiry_Date'
       ]);
+
       if (issueDate) {
-        dateParts.push(
-          'Issued: ' + formatDate(issueDate)
-        );
+        parts.push('Issued: ' + formatDate(issueDate));
       }
+
       if (expiryDate) {
-        dateParts.push(
-          'Expires: ' + formatDate(expiryDate)
-        );
+        parts.push('Expires: ' + formatDate(expiryDate));
       }
-      if (dateParts.length) {
+
+      if (parts.length) {
         const dates = document.createElement('p');
         dates.className = 'candidate-certification-meta';
-        dates.textContent = dateParts.join(' | ');
+        dates.textContent = parts.join(' | ');
         card.appendChild(dates);
       }
+
       const description = getField(item, [
-        'description',
-        'Description'
+        'description', 'Description'
       ]);
+
       if (description) {
-        const descriptionElement =
-          document.createElement('p');
-        descriptionElement.className =
-          'candidate-certification-description';
-        descriptionElement.textContent = String(description);
-        card.appendChild(descriptionElement);
+        const element = document.createElement('p');
+        element.className = 'candidate-certification-description';
+        element.textContent = String(description);
+        card.appendChild(element);
       }
+
       const credentialUrl = getSafeHttpsUrl(
         getField(item, [
-          'credentialUrl',
-          'Credential_URL'
+          'credentialUrl', 'Credential_URL'
         ])
       );
+
       if (credentialUrl) {
         const link = document.createElement('a');
         link.href = credentialUrl;
@@ -424,29 +646,32 @@
         link.textContent = 'View Credential';
         card.appendChild(link);
       }
+
       container.appendChild(card);
     });
+
     if (!container.children.length) {
       container.appendChild(
-        createEmptyMessage(
-          'No certifications available.'
-        )
+        createEmptyMessage('No certifications available.')
       );
     }
   }
-  /* =======================================================
-   * PROFESSIONAL LINKS
-   * ======================================================= */
+
+  /* ===================== SOCIAL LINKS ===================== */
+
   function renderSocialLinks() {
     const container = $('candidateSocialLinks');
     if (!container) return;
+
     container.replaceChildren();
+
     const links =
       state.socialLinks &&
       typeof state.socialLinks === 'object' &&
       !Array.isArray(state.socialLinks)
         ? state.socialLinks
         : {};
+
     const platforms = [
       { key: 'linkedIn', label: 'LinkedIn' },
       { key: 'naukri', label: 'Naukri' },
@@ -455,166 +680,169 @@
       { key: 'portfolio', label: 'Portfolio' },
       { key: 'otherLink', label: 'Other Link' }
     ];
+
     let count = 0;
-    platforms.forEach((platform) => {
-      const value = getField(
-        links,
-        [platform.key]
+
+    platforms.forEach(platform => {
+      const safeUrl = getSafeHttpsUrl(
+        getField(links, [platform.key])
       );
-      const safeUrl = getSafeHttpsUrl(value);
+
       if (!safeUrl) return;
+
       const link = document.createElement('a');
       link.href = safeUrl;
       link.target = '_blank';
       link.rel = 'noopener noreferrer';
       link.className = 'candidate-social-link';
+
       const label = document.createElement('span');
       label.textContent = platform.label;
+
       const arrow = document.createElement('span');
       arrow.textContent = '↗';
       arrow.setAttribute('aria-hidden', 'true');
+
       link.append(label, arrow);
       container.appendChild(link);
       count++;
     });
-    if (count === 0) {
+
+    if (!count) {
       container.appendChild(
-        createEmptyMessage(
-          'No professional links available.'
-        )
+        createEmptyMessage('No professional links available.')
       );
     }
   }
-  /* =======================================================
-   * MAIN PROFILE RENDERING
-   * ======================================================= */
+
+  /* ===================== PROFILE RENDER ===================== */
+
   function renderProfile() {
     const candidate = state.candidate || {};
     const application = state.application || {};
-    const name = getField(candidate, [
-      'fullName',
-      'Full_Name',
-      'Candidate_Name',
-      'candidateName'
-    ], getField(application, [
-      'Candidate_Name',
-      'candidateName'
-    ], 'Candidate'));
+
+    const name = getField(
+      candidate,
+      ['fullName', 'Full_Name', 'Candidate_Name', 'candidateName'],
+      getField(
+        application,
+        ['Candidate_Name', 'candidateName'],
+        'Candidate'
+      )
+    );
+
     const education = getField(candidate, [
-      'education',
-      'Education'
+      'education', 'Education'
     ]);
+
     const qualification = getField(candidate, [
-      'qualification',
-      'Qualification'
+      'qualification', 'Qualification'
     ]);
+
     const experience = getField(candidate, [
-      'experience',
-      'Experience'
+      'experience', 'Experience'
     ]);
+
     const city = getField(candidate, [
-      'currentCity',
-      'Current_City'
+      'currentCity', 'Current_City', 'Current City'
     ]);
+
     setText('candidateFullName', name);
+
     setText(
       'candidateId',
-      getField(candidate, [
-        'candidateId',
-        'Candidate_ID'
-      ], getCandidateId(application))
+      getField(
+        candidate,
+        ['candidateId', 'Candidate_ID'],
+        getCandidateId(application)
+      )
     );
+
     setText(
       'candidateApplicationId',
       getApplicationId(application)
     );
+
     setText(
       'candidateHeadline',
-      qualification ||
-      education ||
-      'Candidate Digital Resume'
+      qualification || education || 'Candidate Digital Resume'
     );
+
     setText('candidateCurrentCity', city);
-    setText(
-      'candidateEducationSummary',
-      qualification || education
-    );
-    setText(
-      'candidateExperienceSummary',
-      experience
-    );
+    setText('candidateEducationSummary', qualification || education);
+    setText('candidateExperienceSummary', experience);
+
     setText(
       'candidateAbout',
-      getField(candidate, [
-        'aboutCandidate',
-        'About_Candidate'
-      ], 'Not provided')
+      getField(
+        candidate,
+        ['aboutCandidate', 'About_Candidate'],
+        'Not provided'
+      )
     );
+
     setText('candidateEducation', education);
     setText('candidateQualification', qualification);
+
     setText(
       'candidatePassingYear',
-      getField(candidate, [
-        'passingYear',
-        'Passing_Year'
-      ])
+      getField(candidate, ['passingYear', 'Passing_Year'])
     );
-    renderSkills(
-      getField(candidate, [
-        'skills',
-        'Skills'
-      ])
-    );
+
+    renderSkills(getField(candidate, ['skills', 'Skills']));
+
     setText('candidateExperience', experience);
+
     setText(
       'candidateEmploymentStatus',
       getField(candidate, [
-        'employmentStatus',
-        'Employment_Status'
+        'employmentStatus', 'Employment_Status'
       ])
     );
+
     setText(
       'candidatePreferredLocation',
       getField(candidate, [
-        'preferredLocation',
-        'Preferred_Location'
+        'preferredLocation', 'Preferred_Location'
       ])
     );
+
     setText(
       'candidateExpectedSalary',
       getField(candidate, [
-        'expectedSalary',
-        'Expected_Salary'
+        'expectedSalary', 'Expected_Salary'
       ])
     );
+
     setText(
       'candidateEmail',
-      getField(candidate, [
-        'email',
-        'Email'
-      ], getField(application, [
-        'Candidate_Email',
-        'candidateEmail'
-      ]))
+      getField(
+        candidate,
+        ['email', 'Email'],
+        getField(application, [
+          'Candidate_Email', 'candidateEmail'
+        ])
+      )
     );
+
     setText(
       'candidateMobile',
-      getField(candidate, [
-        'mobile',
-        'Mobile'
-      ], getField(application, [
-        'Candidate_Mobile',
-        'candidateMobile'
-      ]))
+      getField(
+        candidate,
+        ['mobile', 'Mobile'],
+        getField(application, [
+          'Candidate_Mobile', 'candidateMobile'
+        ])
+      )
     );
+
     setText('candidateContactCity', city);
+
     setText(
       'candidateAppliedJob',
-      getField(application, [
-        'jobTitle',
-        'Job_Title'
-      ])
+      getField(application, ['jobTitle', 'Job_Title'])
     );
+
     setText(
       'candidateAppliedDate',
       formatDate(getField(application, [
@@ -624,85 +852,104 @@
         'applicationDate'
       ]))
     );
+
     setText(
       'candidateEmployerNotes',
-      getField(application, [
-        'employerRemarks',
-        'Employer_Remarks',
-        'Employer_Notes',
-        'employerNotes'
-      ], 'No notes available.')
+      getField(
+        application,
+        [
+          'employerRemarks',
+          'Employer_Remarks',
+          'Employer_Notes',
+          'employerNotes'
+        ],
+        'No notes available.'
+      )
     );
+
     setStatus(getStatus(application));
+
     renderPhoto(
       getField(candidate, [
-        'profilePhotoUrl',
-        'Profile_Photo_URL'
+        'profilePhotoUrl', 'Profile_Photo_URL'
       ]),
       name
     );
   }
-  /* =======================================================
-   * ERROR HANDLING
-   * ======================================================= */
+
+  /* ===================== PROFILE LOADING ===================== */
+
   function showError(message) {
+    state.profileLoaded = false;
+    refreshActionButtons();
+
     show('candidateViewSkeleton', false);
     show('candidateViewContent', false);
     show('candidateViewEmpty', true);
+
     setText(
       'candidateViewEmptyTitle',
       'Candidate profile unavailable'
     );
-    setText(
-      'candidateViewEmptyDescription',
-      message
-    );
+
+    setText('candidateViewEmptyDescription', message);
     showAlert(message);
   }
-  /* =======================================================
-   * LOAD EMPLOYER-AUTHORIZED PROFILE
-   * ======================================================= */
+
   async function loadProfile(applicationId) {
     clearAlert();
+
+    state.profileLoaded = false;
+    refreshActionButtons();
+
     show('candidateViewSkeleton', true);
     show('candidateViewContent', false);
     show('candidateViewEmpty', false);
+
     try {
-      const profileResult = await API.post(
+      const result = await API.post(
         'getEmployerCandidateProfile',
         {
           sessionToken: state.sessionToken,
-          applicationId: applicationId
+          applicationId
         }
       );
-      if (profileResult?.success !== true) {
-        if (isInvalidSession(profileResult)) {
+
+      if (result?.success !== true) {
+        if (isInvalidSession(result)) {
           window.location.replace('login.html');
           return;
         }
+
         throw new Error(
-          profileResult?.message ||
+          result?.message ||
           'Candidate profile is unavailable or access was denied.'
         );
       }
-      const profileData = profileResult.data;
+
+      const data = result.data;
+
       if (
-        !profileData ||
-        typeof profileData !== 'object' ||
-        Array.isArray(profileData)
+        !data ||
+        typeof data !== 'object' ||
+        Array.isArray(data)
       ) {
         throw new Error('Invalid candidate profile response.');
       }
-      const securedApplication = profileData.application;
+
+      const application = data.application;
+
       if (
-        !securedApplication ||
-        typeof securedApplication !== 'object' ||
-        Array.isArray(securedApplication) ||
-        getApplicationId(securedApplication) !== applicationId
+        !application ||
+        typeof application !== 'object' ||
+        Array.isArray(application) ||
+        getApplicationId(application) !== applicationId
       ) {
         throw new Error('Invalid authorized application response.');
       }
-      const candidate = profileData.profile;
+
+      const candidate = data.profile;
+
       if (
         !candidate ||
         typeof candidate !== 'object' ||
@@ -710,14 +957,15 @@
       ) {
         throw new Error('Candidate profile data is missing.');
       }
-      const authorizedCandidateId =
-        getCandidateId(securedApplication);
+
+      const authorizedCandidateId = getCandidateId(application);
+
       const profileCandidateId = String(
         getField(candidate, [
-          'candidateId',
-          'Candidate_ID'
+          'candidateId', 'Candidate_ID'
         ])
       ).trim();
+
       if (
         !profileCandidateId ||
         (
@@ -729,27 +977,37 @@
           'Candidate profile identity verification failed.'
         );
       }
-      state.application = securedApplication;
+
+      state.application = application;
       state.candidate = candidate;
-      state.experience = Array.isArray(profileData.experience)
-        ? profileData.experience
+
+      state.experience = Array.isArray(data.experience)
+        ? data.experience
         : [];
-      state.certifications = Array.isArray(profileData.certifications)
-        ? profileData.certifications
+
+      state.certifications = Array.isArray(data.certifications)
+        ? data.certifications
         : [];
+
       state.socialLinks =
-        profileData.socialLinks &&
-        typeof profileData.socialLinks === 'object' &&
-        !Array.isArray(profileData.socialLinks)
-          ? profileData.socialLinks
+        data.socialLinks &&
+        typeof data.socialLinks === 'object' &&
+        !Array.isArray(data.socialLinks)
+          ? data.socialLinks
           : {};
+
       renderProfile();
       renderExperienceDetails();
       renderCertifications();
       renderSocialLinks();
+
+      state.profileLoaded = true;
+      refreshActionButtons();
+
       show('candidateViewSkeleton', false);
       show('candidateViewEmpty', false);
       show('candidateViewContent', true);
+
     } catch (error) {
       showError(
         error?.message ||
@@ -757,10 +1015,12 @@
       );
     }
   }
-  /* =======================================================
-   * INITIALIZATION
-   * ======================================================= */
+
+  /* ===================== INITIALIZATION ===================== */
+
   async function initialize() {
+    initializeRecruitmentActions();
+
     try {
       if (
         !API ||
@@ -769,11 +1029,11 @@
         typeof SESSION.getSession !== 'function' ||
         typeof SESSION.validateSession !== 'function'
       ) {
-        throw new Error(
-          'Employer services are unavailable.'
-        );
+        throw new Error('Employer services are unavailable.');
       }
+
       const session = SESSION.getSession();
+
       if (
         !session ||
         session.role !== 'employer' ||
@@ -782,31 +1042,37 @@
         window.location.replace('login.html');
         return;
       }
-      const validation =
-        await SESSION.validateSession();
+
+      const validation = await SESSION.validateSession();
+
       if (validation?.success !== true) {
         if (isInvalidSession(validation)) {
           window.location.replace('login.html');
           return;
         }
+
         throw new Error(
           validation?.message ||
           'Unable to validate employer session.'
         );
       }
+
       state.sessionToken = session.sessionToken;
-      const params = new URLSearchParams(
-        window.location.search
-      );
+
+      const params = new URLSearchParams(window.location.search);
+
       const applicationId = String(
         params.get('applicationId') || ''
       ).trim();
+
       if (!applicationId) {
         throw new Error(
           'Application ID is missing from the page URL.'
         );
       }
+
       await loadProfile(applicationId);
+
     } catch (error) {
       showError(
         error?.message ||
@@ -814,5 +1080,7 @@
       );
     }
   }
+
   initialize();
+
 })();
