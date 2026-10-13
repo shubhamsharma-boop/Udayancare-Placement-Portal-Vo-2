@@ -2,20 +2,24 @@
 /**
  * UCPP V2 — Admin Dashboard Controller
  * File: js/admin/dashboard.js
- * Version: 2.0
+ * Version: 3.0
  *
- * PHASE 1 — Authentication & Session Guard
+ * Features:
+ * - Existing admin session protection
+ * - Live dashboard metrics
+ * - Reporting period filters
+ * - Recruitment pipeline
+ * - Loading and error handling
+ * - Secure logout
  *
  * Dependencies:
  * - admin-config.js
  * - admin-api.js
  *
- * SECURITY:
- * - Session restored from same-tab sessionStorage.
- * - Backend validates session on every page load.
- * - Dashboard authorization checked server-side.
- * - No token in URL or localStorage.
- * - No mock data or unauthenticated dashboard access.
+ * Does not modify:
+ * - Candidate/Employer APIs
+ * - Google Sheets
+ * - Existing dashboard HTML/CSS
  */
 
 (function (window, document) {
@@ -27,8 +31,25 @@
   let sessionToken = null;
   let authenticatedAdmin = null;
   let dashboardData = null;
+
   let isInitializing = false;
   let isLoggingOut = false;
+  let isLoadingMetrics = false;
+
+  let currentPeriod = {
+    period: 'all'
+  };
+
+  const METRIC_IDS = Object.freeze({
+    newCandidates: 'adminCandidatesCount',
+    newEmployers: 'adminEmployersCount',
+    jobsPosted: 'adminJobsCount',
+    applications: 'adminApplicationsCount',
+    shortlisted: 'adminShortlistedCount',
+    interviews: 'adminInterviewsCount',
+    rejected: 'adminRejectedCount',
+    verifiedPlacements: 'adminPlacementsCount'
+  });
 
   function getElement(id) {
     return document.getElementById(id);
@@ -97,6 +118,17 @@
     if (container) {
       container.remove();
     }
+  }
+
+  function showAlert(message) {
+    const alert = getElement('adminDashboardAlert');
+
+    if (!alert) {
+      return;
+    }
+
+    alert.textContent = String(message || '');
+    alert.hidden = !message;
   }
 
   function clearSensitiveState() {
@@ -168,7 +200,8 @@
     hideProtectedContent();
 
     showAccessMessage(
-      message || 'Administrator authentication is required.'
+      message ||
+      'Administrator authentication is required.'
     );
 
     if (redirect) {
@@ -222,13 +255,373 @@
     return null;
   }
 
+  function formatCount(value) {
+    if (
+      typeof value !== 'number' ||
+      !Number.isFinite(value) ||
+      value < 0
+    ) {
+      return '—';
+    }
+
+    return Math.trunc(value).toLocaleString('en-IN');
+  }
+
+  function setCount(id, value) {
+    const element = getElement(id);
+
+    if (element) {
+      element.textContent = formatCount(value);
+    }
+  }
+
+  function resetMetrics() {
+    Object.keys(METRIC_IDS).forEach(function (key) {
+      setCount(METRIC_IDS[key], null);
+    });
+
+    [
+      'adminPipelineApplied',
+      'adminPipelineShortlisted',
+      'adminPipelineInterview',
+      'adminPipelineRejected'
+    ].forEach(function (id) {
+      setCount(id, null);
+    });
+  }
+
+  function renderMetrics(metrics) {
+    if (
+      !metrics ||
+      typeof metrics !== 'object'
+    ) {
+      resetMetrics();
+      return;
+    }
+
+    Object.keys(METRIC_IDS).forEach(function (key) {
+      setCount(
+        METRIC_IDS[key],
+        metrics[key]
+      );
+    });
+
+    /*
+     * Pipeline values represent current
+     * application statuses, not a historical
+     * sequence of stage transitions.
+     *
+     * The current backend returns:
+     * applications, shortlisted,
+     * interviews, rejected.
+     */
+    setCount(
+      'adminPipelineApplied',
+      metrics.applications
+    );
+
+    setCount(
+      'adminPipelineShortlisted',
+      metrics.shortlisted
+    );
+
+    setCount(
+      'adminPipelineInterview',
+      metrics.interviews
+    );
+
+    setCount(
+      'adminPipelineRejected',
+      metrics.rejected
+    );
+  }
+
+  function getLocalDateKey(date) {
+    const year = date.getFullYear();
+    const month = String(
+      date.getMonth() + 1
+    ).padStart(2, '0');
+
+    const day = String(
+      date.getDate()
+    ).padStart(2, '0');
+
+    return year + '-' + month + '-' + day;
+  }
+
+  function getPeriodPayload() {
+    const preset = getElement('adminDatePreset');
+    const from = getElement('adminFromDate');
+    const to = getElement('adminToDate');
+
+    const value = preset ? preset.value : 'all';
+
+    if (value === 'all') {
+      return {
+        period: 'all'
+      };
+    }
+
+    if (value === 'month') {
+      return {
+        period: 'this_month'
+      };
+    }
+
+    if (value === 'lastmonth') {
+      return {
+        period: 'last_month'
+      };
+    }
+
+    if (value === 'today') {
+      const today = getLocalDateKey(new Date());
+
+      return {
+        period: 'custom',
+        startDate: today,
+        endDate: today
+      };
+    }
+
+    if (value === '7days') {
+      const today = new Date();
+      const start = new Date(today);
+
+      start.setDate(start.getDate() - 6);
+
+      return {
+        period: 'custom',
+        startDate: getLocalDateKey(start),
+        endDate: getLocalDateKey(today)
+      };
+    }
+
+    if (value === 'custom') {
+      const startDate = from ? from.value : '';
+      const endDate = to ? to.value : '';
+
+      if (
+        !startDate ||
+        !endDate ||
+        startDate > endDate
+      ) {
+        throw new Error(
+          'Please select a valid date range.'
+        );
+      }
+
+      return {
+        period: 'custom',
+        startDate: startDate,
+        endDate: endDate
+      };
+    }
+
+    throw new Error(
+      'Unsupported reporting period.'
+    );
+  }
+
+  function getPeriodLabel() {
+    const preset = getElement('adminDatePreset');
+
+    if (!preset) {
+      return 'All-time overview';
+    }
+
+    const labels = {
+      all: 'All-time overview',
+      today: 'Today',
+      '7days': 'Last 7 days',
+      month: 'This month',
+      lastmonth: 'Last month',
+      custom: 'Custom date range'
+    };
+
+    return labels[preset.value] ||
+      'Selected reporting period';
+  }
+
+  function updateCustomDateVisibility() {
+    const preset = getElement('adminDatePreset');
+
+    const fromWrap = getElement(
+      'adminFromDateWrap'
+    );
+
+    const toWrap = getElement(
+      'adminToDateWrap'
+    );
+
+    const custom = Boolean(
+      preset && preset.value === 'custom'
+    );
+
+    if (fromWrap) {
+      fromWrap.hidden = !custom;
+      fromWrap.style.display = custom ? '' : 'none';
+    }
+
+    if (toWrap) {
+      toWrap.hidden = !custom;
+      toWrap.style.display = custom ? '' : 'none';
+    }
+  }
+
+  function setLoading(loading) {
+    isLoadingMetrics = loading;
+
+    const button = getElement(
+      'adminApplyFilter'
+    );
+
+    if (button) {
+      button.disabled = loading;
+      button.textContent = loading
+        ? 'Loading...'
+        : 'Apply Filter';
+
+      button.removeAttribute('title');
+    }
+  }
+
+  async function loadMetrics(periodPayload) {
+    if (
+      !sessionToken ||
+      !API ||
+      isLoadingMetrics
+    ) {
+      return;
+    }
+
+    setLoading(true);
+    showAlert('');
+
+    try {
+      const response = await API.request(
+        CONFIG.ACTIONS.DASHBOARD,
+        {
+          token: sessionToken,
+          ...periodPayload
+        }
+      );
+
+      if (
+        !response ||
+        response.success !== true
+      ) {
+        if (
+          response &&
+          [
+            'INVALID_ADMIN_SESSION',
+            'ADMIN_SESSION_REQUIRED',
+            'ADMIN_ACCESS_DENIED',
+            'ADMIN_IDENTITY_INVALID'
+          ].includes(response.code)
+        ) {
+          denyAccess(
+            'Your administrator session has expired.',
+            true
+          );
+          return;
+        }
+
+        throw new Error(
+          response && response.message
+            ? response.message
+            : 'Unable to load dashboard metrics.'
+        );
+      }
+
+      const dashboard = extractDashboard(
+        response
+      );
+
+      if (
+        !dashboard ||
+        dashboard.metricsAvailable !== true ||
+        !dashboard.metrics
+      ) {
+        throw new Error(
+          'Live dashboard metrics are not available.'
+        );
+      }
+
+      dashboardData = dashboard;
+      currentPeriod = periodPayload;
+
+      renderMetrics(dashboard.metrics);
+
+      const label = getElement(
+        'adminSelectedPeriodLabel'
+      );
+
+      if (label) {
+        label.textContent = getPeriodLabel();
+      }
+
+    } catch (error) {
+      showAlert(
+        error && error.message
+          ? error.message
+          : 'Unable to load dashboard metrics.'
+      );
+
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function setupFilters() {
+    const form = getElement(
+      'adminDashboardFilterForm'
+    );
+
+    const preset = getElement(
+      'adminDatePreset'
+    );
+
+    if (preset) {
+      preset.addEventListener(
+        'change',
+        updateCustomDateVisibility
+      );
+    }
+
+    updateCustomDateVisibility();
+
+    if (form) {
+      form.addEventListener(
+        'submit',
+        function (event) {
+          event.preventDefault();
+
+          try {
+            const period = getPeriodPayload();
+
+            loadMetrics(period);
+
+          } catch (error) {
+            showAlert(error.message);
+          }
+        }
+      );
+    }
+  }
+
   async function validateDashboardAccess(token) {
     if (!CONFIG || !API) {
-      denyAccess('Admin configuration is unavailable.', false);
+      denyAccess(
+        'Admin configuration is unavailable.',
+        false
+      );
       return false;
     }
 
-    const normalizedToken = String(token || '').trim();
+    const normalizedToken = String(
+      token || ''
+    ).trim();
 
     if (!normalizedToken) {
       denyAccess(
@@ -239,14 +632,20 @@
     }
 
     hideProtectedContent();
-    showAccessMessage('Verifying administrator session...');
+
+    showAccessMessage(
+      'Verifying administrator session...'
+    );
 
     try {
       const validation = await API.validateSession(
         normalizedToken
       );
 
-      if (!validation || validation.success !== true) {
+      if (
+        !validation ||
+        validation.success !== true
+      ) {
         denyAccess(
           'Your administrator session has expired.',
           true
@@ -264,9 +663,8 @@
         return false;
       }
 
-      const dashboardResponse = await API.getDashboard(
-        normalizedToken
-      );
+      const dashboardResponse =
+        await API.getDashboard(normalizedToken);
 
       if (
         !dashboardResponse ||
@@ -299,25 +697,51 @@
       showProtectedContent();
 
       document.dispatchEvent(
-        new CustomEvent('ucpp:admin-authorized', {
-          detail: {
-            admin: {
-              name: String(
-                admin.name || admin.fullName || ''
-              ),
-              role: String(admin.role || '')
+        new CustomEvent(
+          'ucpp:admin-authorized',
+          {
+            detail: {
+              admin: {
+                name: String(
+                  admin.name ||
+                  admin.fullName ||
+                  ''
+                ),
+                role: String(
+                  admin.role || ''
+                )
+              }
             }
           }
-        })
+        )
       );
+
+      if (
+        dashboard.metricsAvailable === true &&
+        dashboard.metrics
+      ) {
+        renderMetrics(dashboard.metrics);
+
+        const applyButton = getElement(
+          'adminApplyFilter'
+        );
+
+        if (applyButton) {
+          applyButton.disabled = false;
+          applyButton.removeAttribute('title');
+        }
+
+      } else {
+        resetMetrics();
+
+        showAlert(
+          'Dashboard is accessible, but live metrics are not available yet.'
+        );
+      }
 
       return true;
 
     } catch (_) {
-      /*
-       * Fail closed on network or server errors.
-       * Do not display cached protected data.
-       */
       denyAccess(
         'Unable to verify administrator access.',
         true
@@ -333,7 +757,8 @@
 
     isLoggingOut = true;
 
-    const token = sessionToken || restoreStoredSession();
+    const token =
+      sessionToken || restoreStoredSession();
 
     clearSensitiveState();
     clearStoredSession();
@@ -354,14 +779,19 @@
 
   function setupLogoutButtons() {
     const buttons = document.querySelectorAll(
-      '[data-admin-logout], #adminLogout, #logoutButton'
+      '[data-admin-logout], ' +
+      '#adminLogout, ' +
+      '#logoutButton'
     );
 
     buttons.forEach(function (button) {
-      button.addEventListener('click', function (event) {
-        event.preventDefault();
-        logout();
-      });
+      button.addEventListener(
+        'click',
+        function (event) {
+          event.preventDefault();
+          logout();
+        }
+      );
     });
   }
 
@@ -383,6 +813,7 @@
     }
 
     setupLogoutButtons();
+    setupFilters();
 
     const token = restoreStoredSession();
 
@@ -407,19 +838,26 @@
     initialize();
   }
 
-  Object.defineProperty(window, 'UCPP_ADMIN_DASHBOARD', {
-    value: Object.freeze({
-      validateAccess: validateDashboardAccess,
-      logout: logout,
-      isAuthenticated: function () {
-        return Boolean(
-          authenticatedAdmin &&
-          sessionToken
-        );
-      }
-    }),
-    writable: false,
-    configurable: false
-  });
+  Object.defineProperty(
+    window,
+    'UCPP_ADMIN_DASHBOARD',
+    {
+      value: Object.freeze({
+        validateAccess: validateDashboardAccess,
+        logout: logout,
+        isAuthenticated: function () {
+          return Boolean(
+            authenticatedAdmin &&
+            sessionToken
+          );
+        },
+        refreshMetrics: function () {
+          return loadMetrics(currentPeriod);
+        }
+      }),
+      writable: false,
+      configurable: false
+    }
+  );
 
 })(window, document);
