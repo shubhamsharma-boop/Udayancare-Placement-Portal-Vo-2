@@ -244,12 +244,6 @@
           Applications
         </a>
 
-        <a
-          class="ucpp-nav__link${active(['shortlisted.html'])}"
-          href="${root}employer/shortlisted.html"
-        >
-          Shortlisted
-        </a>
 
         <a
           class="ucpp-nav__link${active(['company-profile.html'])}"
