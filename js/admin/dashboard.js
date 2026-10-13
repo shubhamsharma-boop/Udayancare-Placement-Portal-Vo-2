@@ -342,8 +342,10 @@
     });
 
     // Backend currently does not provide an Applied-only count.
-    setText('adminPipelineApplied', '—');
-
+setText(
+  'adminPipelineApplied',
+  formatNumber(metrics.applied)
+);
     setText(
       'adminPipelineShortlisted',
       formatNumber(metrics.shortlisted)
