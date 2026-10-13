@@ -3,8 +3,8 @@
 
 /*
  * =========================================================
- * UCPP V2 — Employer Post Job v1.0
- * Preparation Mode — No Job Publishing
+ * UCPP V2 — Employer Post Job v2.0
+ * Secure Job Publishing
  *
  * Features:
  * - Employer session validation
@@ -12,7 +12,10 @@
  * - Application deadline validation
  * - Required field validation
  * - Salary and vacancy validation
- * - No backend write operations
+ * - Secure backend job publishing
+ * - Duplicate submission prevention
+ * - Job ID confirmation
+ * - Session expiry handling
  * =========================================================
  */
 
@@ -61,6 +64,15 @@
     'Application_Last_Date'
   ];
 
+  let employerSessionToken = '';
+  let isSubmitting = false;
+  let isReady = false;
+  let hasPublished = false;
+
+  const originalButtonText = publishButton
+    ? publishButton.textContent
+    : 'Publish Job';
+
   function getField(name) {
     return form
       ? form.elements.namedItem(name)
@@ -78,6 +90,12 @@
     alertBox.textContent = message;
     alertBox.className = 'profile-alert ' + type;
     alertBox.hidden = false;
+
+    if (type === 'success') {
+      alertBox.setAttribute('role', 'status');
+    } else {
+      alertBox.setAttribute('role', 'alert');
+    }
   }
 
   function hideAlert() {
@@ -153,7 +171,6 @@
 
   /*
    * CLIENT-SIDE VALIDATION
-   * Mirrors the intended backend field rules.
    */
 
   function validateJobForm() {
@@ -194,7 +211,6 @@
       }
     });
 
-    // Vacancies: positive whole number, max 100000
     if (job.Vacancies) {
       if (
         !/^[1-9]\d*$/.test(job.Vacancies) ||
@@ -207,7 +223,6 @@
       }
     }
 
-    // Salary: optional, non-negative, max two decimal places
     ['Salary_Min', 'Salary_Max'].forEach((name) => {
       const value = job[name];
 
@@ -233,7 +248,6 @@
       );
     }
 
-    // Deadline: YYYY-MM-DD and not in the past
     if (job.Application_Last_Date) {
 
       const deadline = job.Application_Last_Date;
@@ -268,7 +282,6 @@
       );
 
       firstInvalidField.focus();
-
       return false;
     }
 
@@ -276,8 +289,26 @@
   }
 
   /*
+   * BUTTON STATE
+   */
+
+  function updatePublishButton() {
+    if (!publishButton) return;
+
+    publishButton.disabled =
+      !isReady || isSubmitting || hasPublished;
+
+    if (isSubmitting) {
+      publishButton.textContent = 'Publishing Job...';
+    } else if (hasPublished) {
+      publishButton.textContent = 'Job Published';
+    } else {
+      publishButton.textContent = originalButtonText;
+    }
+  }
+
+  /*
    * LOAD EMPLOYER PROFILE
-   * Read-only API operation
    */
 
   async function loadEmployerProfile(sessionToken) {
@@ -318,9 +349,114 @@
 
     if (field) {
       field.value = companyName;
+      field.readOnly = true;
     }
 
     return true;
+  }
+
+  /*
+   * PUBLISH JOB
+   */
+
+  async function publishJob(event) {
+
+    event.preventDefault();
+
+    if (!isReady || isSubmitting || hasPublished) {
+      return;
+    }
+
+    if (!validateJobForm()) {
+      return;
+    }
+
+    const session = SESSION.getSession();
+
+    if (
+      !session ||
+      session.role !== 'employer' ||
+      !session.sessionToken ||
+      session.sessionToken !== employerSessionToken
+    ) {
+      isReady = false;
+      updatePublishButton();
+
+      showAlert(
+        'Your session has expired. Please login again.'
+      );
+
+      return;
+    }
+
+    isSubmitting = true;
+    updatePublishButton();
+
+    showAlert(
+      'Publishing your job. Please wait...',
+      'info'
+    );
+
+    try {
+
+      const result = await API.post(
+        'postEmployerJob',
+        {
+          sessionToken: employerSessionToken,
+          job: collectJobData()
+        }
+      );
+
+      if (!result || result.success !== true) {
+
+        if (
+          result &&
+          (
+            result.code === 'INVALID_SESSION' ||
+            result.code === 'SESSION_EXPIRED' ||
+            result.code === 'NO_SESSION'
+          )
+        ) {
+          isReady = false;
+
+          showAlert(
+            'Your employer session has expired. Please login again.'
+          );
+
+          return;
+        }
+
+        throw new Error(
+          result?.message || 'Unable to publish job.'
+        );
+      }
+
+      hasPublished = true;
+
+      const jobId = String(
+        result.data?.jobId || ''
+      ).trim();
+
+      showAlert(
+        jobId
+          ? 'Job published successfully! Job ID: ' + jobId
+          : 'Job published successfully!',
+        'success'
+      );
+
+    } catch (error) {
+
+      showAlert(
+        error?.message ||
+        'Unable to publish job. Please try again.'
+      );
+
+    } finally {
+
+      isSubmitting = false;
+      updatePublishButton();
+
+    }
   }
 
   /*
@@ -331,24 +467,13 @@
 
     if (!form || !publishButton) return;
 
-    // Publishing stays disabled until explicitly approved.
-    publishButton.disabled = true;
+    isReady = false;
+    updatePublishButton();
 
     configureDeadline();
 
-    // Prevent submission, including pressing Enter.
-    form.addEventListener('submit', (event) => {
-      event.preventDefault();
+    form.addEventListener('submit', publishJob);
 
-      validateJobForm();
-
-      showAlert(
-        'Job publishing is not enabled yet. No job has been submitted.',
-        'info'
-      );
-    });
-
-    // Clear individual errors when user changes a field.
     form.addEventListener('input', (event) => {
       const name = event.target?.name;
 
@@ -408,9 +533,21 @@
         );
       }
 
-      await loadEmployerProfile(session.sessionToken);
+      employerSessionToken = session.sessionToken;
+
+      const profileLoaded = await loadEmployerProfile(
+        employerSessionToken
+      );
+
+      if (!profileLoaded) return;
+
+      isReady = true;
+      updatePublishButton();
 
     } catch (error) {
+
+      isReady = false;
+      updatePublishButton();
 
       showAlert(
         error?.message ||
