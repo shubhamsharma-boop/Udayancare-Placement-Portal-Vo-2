@@ -2,21 +2,20 @@
 /**
  * UCPP V2 — Admin Dashboard Controller
  * File: js/admin/dashboard.js
- * Version: 1.0
+ * Version: 2.0
  *
- * PHASE 1 — Authentication Guard
- *
- * SECURITY:
- * - No unauthenticated dashboard API calls.
- * - No admin token in URL.
- * - No token in localStorage.
- * - No mock admin data.
- * - Dashboard access remains blocked until
- *   secure session handoff is implemented.
+ * PHASE 1 — Authentication & Session Guard
  *
  * Dependencies:
  * - admin-config.js
  * - admin-api.js
+ *
+ * SECURITY:
+ * - Session restored from same-tab sessionStorage.
+ * - Backend validates session on every page load.
+ * - Dashboard authorization checked server-side.
+ * - No token in URL or localStorage.
+ * - No mock data or unauthenticated dashboard access.
  */
 
 (function (window, document) {
@@ -25,29 +24,38 @@
   const CONFIG = window.UCPP_ADMIN_CONFIG;
   const API = window.UCPP_ADMIN_API;
 
+  let sessionToken = null;
   let authenticatedAdmin = null;
   let dashboardData = null;
-  let sessionToken = null;
+  let isInitializing = false;
+  let isLoggingOut = false;
 
   function getElement(id) {
     return document.getElementById(id);
   }
 
-  function hideProtectedContent() {
-    const selectors = [
-      '[data-admin-protected]',
-      '[data-admin-dashboard]',
-      '#dashboardContent',
-      '#adminDashboardContent',
-      '#dashboardMain',
+  function getProtectedElements() {
+    return document.querySelectorAll(
+      '[data-admin-protected], ' +
+      '[data-admin-dashboard], ' +
+      '#dashboardContent, ' +
+      '#adminDashboardContent, ' +
+      '#dashboardMain, ' +
       '#adminDashboard'
-    ];
+    );
+  }
 
-    selectors.forEach(function (selector) {
-      document.querySelectorAll(selector).forEach(function (element) {
-        element.hidden = true;
-        element.style.display = 'none';
-      });
+  function hideProtectedContent() {
+    getProtectedElements().forEach(function (element) {
+      element.hidden = true;
+      element.style.display = 'none';
+    });
+  }
+
+  function showProtectedContent() {
+    getProtectedElements().forEach(function (element) {
+      element.hidden = false;
+      element.style.removeProperty('display');
     });
   }
 
@@ -58,13 +66,13 @@
       container = document.createElement('div');
       container.id = 'adminAccessMessage';
 
-      container.setAttribute('role', 'alert');
+      container.setAttribute('role', 'status');
       container.setAttribute('aria-live', 'polite');
 
       document.body.appendChild(container);
     }
 
-    container.textContent = message;
+    container.textContent = String(message || '');
 
     Object.assign(container.style, {
       position: 'fixed',
@@ -83,98 +91,70 @@
     });
   }
 
+  function removeAccessMessage() {
+    const container = getElement('adminAccessMessage');
+
+    if (container) {
+      container.remove();
+    }
+  }
+
   function clearSensitiveState() {
+    sessionToken = null;
     authenticatedAdmin = null;
     dashboardData = null;
-    sessionToken = null;
   }
 
-  function denyAccess(message) {
-    clearSensitiveState();
-    hideProtectedContent();
-
-    showAccessMessage(
-      message ||
-      'Administrator authentication is required.'
-    );
-  }
-
-  async function validateDashboardAccess(token) {
-    if (!API || !CONFIG) {
-      denyAccess('Admin configuration is unavailable.');
-      return false;
-    }
-
-    const normalizedToken = String(token || '').trim();
-
-    if (!normalizedToken) {
-      denyAccess(
-        'Administrator session is required. Please sign in again.'
-      );
-      return false;
+  function clearStoredSession() {
+    if (!CONFIG || !CONFIG.SESSION) {
+      return;
     }
 
     try {
-      const validation = await API.validateSession(
-        normalizedToken
+      window.sessionStorage.removeItem(
+        CONFIG.SESSION.STORAGE_KEY
       );
-
-      if (
-        !validation ||
-        validation.success !== true ||
-        !validation.admin
-      ) {
-        denyAccess('Administrator session is invalid or expired.');
-        return false;
-      }
-
-      const dashboard = await API.getDashboard(
-        normalizedToken
-      );
-
-      if (
-        !dashboard ||
-        dashboard.success !== true ||
-        !dashboard.dashboard
-      ) {
-        denyAccess('Unable to authorize dashboard access.');
-        return false;
-      }
-
-      authenticatedAdmin = validation.admin;
-      dashboardData = dashboard.dashboard;
-      sessionToken = normalizedToken;
-
-      const message = getElement('adminAccessMessage');
-
-      if (message) {
-        message.remove();
-      }
-
-      return true;
-
     } catch (_) {
-      denyAccess(
-        'Unable to verify administrator access. Please try again.'
-      );
-      return false;
+      // Storage may be unavailable.
     }
   }
 
-  async function logout() {
-    const token = sessionToken;
-
-    clearSensitiveState();
-    hideProtectedContent();
-
-    if (token && API) {
-      try {
-        await API.logout(token);
-      } catch (_) {
-        // Server-side logout could not be confirmed.
-      }
+  function restoreStoredSession() {
+    if (!CONFIG || !CONFIG.SESSION) {
+      return null;
     }
 
+    try {
+      const raw = window.sessionStorage.getItem(
+        CONFIG.SESSION.STORAGE_KEY
+      );
+
+      if (!raw) {
+        return null;
+      }
+
+      const session = JSON.parse(raw);
+
+      if (
+        !session ||
+        typeof session.token !== 'string' ||
+        !session.token.trim() ||
+        !Number.isFinite(session.expiresAt) ||
+        session.expiresAt <= Date.now()
+      ) {
+        clearStoredSession();
+        return null;
+      }
+
+      return session.token.trim();
+
+    } catch (_) {
+      clearStoredSession();
+      return null;
+    }
+  }
+
+  function redirectToLogin() {
     window.location.replace(
       CONFIG && CONFIG.PATHS
         ? CONFIG.PATHS.LOGIN
@@ -182,19 +162,239 @@
     );
   }
 
-  function initialize() {
+  function denyAccess(message, redirect) {
+    clearSensitiveState();
+    clearStoredSession();
     hideProtectedContent();
 
-    /*
-     * No cross-page session handoff is currently
-     * implemented.
-     *
-     * Until that is reviewed and completed, this
-     * dashboard must remain inaccessible.
-     */
-    denyAccess(
-      'Admin dashboard access is not enabled yet. Secure session integration is pending.'
+    showAccessMessage(
+      message || 'Administrator authentication is required.'
     );
+
+    if (redirect) {
+      redirectToLogin();
+    }
+  }
+
+  function extractAdmin(response) {
+    if (!response || typeof response !== 'object') {
+      return null;
+    }
+
+    if (
+      response.admin &&
+      typeof response.admin === 'object'
+    ) {
+      return response.admin;
+    }
+
+    if (
+      response.data &&
+      response.data.admin &&
+      typeof response.data.admin === 'object'
+    ) {
+      return response.data.admin;
+    }
+
+    return null;
+  }
+
+  function extractDashboard(response) {
+    if (!response || typeof response !== 'object') {
+      return null;
+    }
+
+    if (
+      response.dashboard &&
+      typeof response.dashboard === 'object'
+    ) {
+      return response.dashboard;
+    }
+
+    if (
+      response.data &&
+      response.data.dashboard &&
+      typeof response.data.dashboard === 'object'
+    ) {
+      return response.data.dashboard;
+    }
+
+    return null;
+  }
+
+  async function validateDashboardAccess(token) {
+    if (!CONFIG || !API) {
+      denyAccess('Admin configuration is unavailable.', false);
+      return false;
+    }
+
+    const normalizedToken = String(token || '').trim();
+
+    if (!normalizedToken) {
+      denyAccess(
+        'Administrator session is required.',
+        true
+      );
+      return false;
+    }
+
+    hideProtectedContent();
+    showAccessMessage('Verifying administrator session...');
+
+    try {
+      const validation = await API.validateSession(
+        normalizedToken
+      );
+
+      if (!validation || validation.success !== true) {
+        denyAccess(
+          'Your administrator session has expired.',
+          true
+        );
+        return false;
+      }
+
+      const admin = extractAdmin(validation);
+
+      if (!admin) {
+        denyAccess(
+          'Unable to verify administrator identity.',
+          true
+        );
+        return false;
+      }
+
+      const dashboardResponse = await API.getDashboard(
+        normalizedToken
+      );
+
+      if (
+        !dashboardResponse ||
+        dashboardResponse.success !== true
+      ) {
+        denyAccess(
+          'Dashboard access was not authorized.',
+          true
+        );
+        return false;
+      }
+
+      const dashboard = extractDashboard(
+        dashboardResponse
+      );
+
+      if (!dashboard) {
+        denyAccess(
+          'Dashboard authorization response is incomplete.',
+          true
+        );
+        return false;
+      }
+
+      sessionToken = normalizedToken;
+      authenticatedAdmin = admin;
+      dashboardData = dashboard;
+
+      removeAccessMessage();
+      showProtectedContent();
+
+      document.dispatchEvent(
+        new CustomEvent('ucpp:admin-authorized', {
+          detail: {
+            admin: {
+              name: String(
+                admin.name || admin.fullName || ''
+              ),
+              role: String(admin.role || '')
+            }
+          }
+        })
+      );
+
+      return true;
+
+    } catch (_) {
+      /*
+       * Fail closed on network or server errors.
+       * Do not display cached protected data.
+       */
+      denyAccess(
+        'Unable to verify administrator access.',
+        true
+      );
+      return false;
+    }
+  }
+
+  async function logout() {
+    if (isLoggingOut) {
+      return;
+    }
+
+    isLoggingOut = true;
+
+    const token = sessionToken || restoreStoredSession();
+
+    clearSensitiveState();
+    clearStoredSession();
+    hideProtectedContent();
+
+    showAccessMessage('Signing out...');
+
+    if (token && API) {
+      try {
+        await API.logout(token);
+      } catch (_) {
+        // Server revocation could not be confirmed.
+      }
+    }
+
+    redirectToLogin();
+  }
+
+  function setupLogoutButtons() {
+    const buttons = document.querySelectorAll(
+      '[data-admin-logout], #adminLogout, #logoutButton'
+    );
+
+    buttons.forEach(function (button) {
+      button.addEventListener('click', function (event) {
+        event.preventDefault();
+        logout();
+      });
+    });
+  }
+
+  async function initialize() {
+    if (isInitializing) {
+      return;
+    }
+
+    isInitializing = true;
+
+    hideProtectedContent();
+
+    if (!CONFIG || !API) {
+      denyAccess(
+        'Admin services are not configured.',
+        false
+      );
+      return;
+    }
+
+    setupLogoutButtons();
+
+    const token = restoreStoredSession();
+
+    if (!token) {
+      denyAccess(
+        'Please sign in to access the dashboard.',
+        true
+      );
+      return;
+    }
+
+    await validateDashboardAccess(token);
   }
 
   if (document.readyState === 'loading') {
@@ -207,16 +407,15 @@
     initialize();
   }
 
-  /*
-   * Expose only minimal controller methods.
-   * These do not bypass backend authorization.
-   */
   Object.defineProperty(window, 'UCPP_ADMIN_DASHBOARD', {
     value: Object.freeze({
       validateAccess: validateDashboardAccess,
       logout: logout,
       isAuthenticated: function () {
-        return Boolean(authenticatedAdmin && sessionToken);
+        return Boolean(
+          authenticatedAdmin &&
+          sessionToken
+        );
       }
     }),
     writable: false,
