@@ -2,22 +2,17 @@
 /**
  * UCPP V2 — Admin API Client
  * File: js/admin/admin-api.js
- * Version: 2.0
+ * Version: 3.0
  *
- * Handles:
- * - Admin login with cryptographically random token
+ * Features:
+ * - Secure admin login
  * - Session validation
- * - Admin logout
- * - Protected dashboard requests
+ * - Logout
+ * - Live dashboard metrics
+ * - Reporting-period filters
+ * - Protected CSV export requests
  *
- * Does not modify Candidate/Employer APIs.
- *
- * SECURITY:
- * - Generates 256-bit session tokens using Web Crypto.
- * - Never logs passwords or session tokens.
- * - Requires HTTPS Apps Script endpoint.
- * - Does not automatically persist tokens.
- * - Backend verifies credentials before registering token.
+ * Existing Candidate/Employer APIs unaffected.
  */
 
 (function (window) {
@@ -80,10 +75,6 @@
     return payload;
   }
 
-  /**
-   * Generate 32 cryptographically random bytes
-   * and encode them as 64 lowercase hex characters.
-   */
   function generateSessionToken() {
     if (
       !window.isSecureContext ||
@@ -130,12 +121,6 @@
     );
 
     try {
-      /*
-       * text/plain avoids CORS preflight
-       * for Google Apps Script requests.
-       *
-       * Do not use mode: 'no-cors'.
-       */
       const response = await fetch(url, {
         method: 'POST',
         redirect: 'follow',
@@ -182,11 +167,7 @@
   }
 
   /**
-   * Generate a new session token for each
-   * login attempt.
-   *
-   * The server registers it only after
-   * successful password verification.
+   * ADMIN LOGIN
    */
   function login(email, password) {
     const sessionToken = generateSessionToken();
@@ -194,25 +175,99 @@
     return request(CONFIG.ACTIONS.LOGIN, {
       email: String(email || '').trim(),
       password: String(password || ''),
-      sessionToken: sessionToken
+      sessionToken
     });
   }
 
+  /**
+   * SESSION VALIDATION
+   */
   function validateSession(token) {
     return request(CONFIG.ACTIONS.VALIDATE_SESSION, {
       token: String(token || '').trim()
     });
   }
 
+  /**
+   * LOGOUT
+   */
   function logout(token) {
     return request(CONFIG.ACTIONS.LOGOUT, {
       token: String(token || '').trim()
     });
   }
 
-  function getDashboard(token) {
+  /**
+   * DASHBOARD METRICS
+   *
+   * Supports:
+   * all
+   * this_month
+   * last_month
+   * custom
+   */
+  function getDashboard(token, options = {}) {
     return request(CONFIG.ACTIONS.DASHBOARD, {
-      token: String(token || '').trim()
+      token: String(token || '').trim(),
+      period: String(options.period || 'all'),
+      startDate: String(options.startDate || ''),
+      endDate: String(options.endDate || '')
+    });
+  }
+
+  /**
+   * SECURE REPORT EXPORT
+   *
+   * Backend currently supports CSV only.
+   *
+   * Supported segments:
+   * candidates, employers, jobs,
+   * applications, enquiries
+   */
+  function exportData(token, options = {}) {
+    const segment = String(
+      options.segment || ''
+    ).trim().toLowerCase();
+
+    const format = String(
+      options.format || 'csv'
+    ).trim().toLowerCase();
+
+    const period = String(
+      options.period || 'all'
+    ).trim().toLowerCase();
+
+    const allowedSegments = [
+      'candidates',
+      'employers',
+      'jobs',
+      'applications',
+      'enquiries'
+    ];
+
+    if (!allowedSegments.includes(segment)) {
+      return Promise.reject(
+        new Error(
+          'Selected report is not available yet.'
+        )
+      );
+    }
+
+    if (format !== 'csv') {
+      return Promise.reject(
+        new Error(
+          'Excel export is not enabled yet. Please select CSV.'
+        )
+      );
+    }
+
+    return request('exportAdminData', {
+      token: String(token || '').trim(),
+      segment,
+      format,
+      period,
+      startDate: String(options.startDate || ''),
+      endDate: String(options.endDate || '')
     });
   }
 
@@ -221,7 +276,8 @@
     login,
     validateSession,
     logout,
-    getDashboard
+    getDashboard,
+    exportData
   });
 
   Object.defineProperty(
