@@ -6,8 +6,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <title>Admin Dashboard | UCPP V2</title>
+
   <meta name="description"
         content="Udayan Care Placement Portal administration dashboard.">
+
+  <meta name="robots" content="noindex, nofollow">
 
   <!-- COMMON CSS -->
   <link rel="stylesheet" href="../css/common/variables.css">
@@ -18,34 +21,108 @@
   <link rel="stylesheet" href="../css/common/utilities.css">
   <link rel="stylesheet" href="../css/common/shell.css">
 
-  <!-- PAGE CSS - TO BE CREATED NEXT -->
+  <!-- ADMIN PAGE CSS -->
   <link rel="stylesheet" href="../css/admin/dashboard.css">
+
+  <!--
+    SECURITY:
+    Keep protected dashboard content hidden until
+    backend session validation and authorization succeed.
+  -->
+  <style>
+    [data-admin-protected][hidden] {
+      display: none !important;
+    }
+
+    .admin-dashboard-logout {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 20px;
+    }
+
+    .admin-logout-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 18px;
+      border: 1px solid #d5dfea;
+      border-radius: 8px;
+      background: #ffffff;
+      color: #174a83;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .admin-logout-button:hover {
+      background: #eef4fb;
+    }
+
+    .admin-logout-button:focus-visible {
+      outline: 3px solid #4b93e8;
+      outline-offset: 3px;
+    }
+  </style>
+
+  <!-- ADMIN AUTH DEPENDENCIES -->
+  <script defer src="../js/admin/admin-config.js"></script>
+  <script defer src="../js/admin/admin-api.js"></script>
+  <script defer src="../js/admin/dashboard.js"></script>
+
 </head>
 
 <body>
 
   <div id="siteHeader"></div>
 
-  <main class="admin-dashboard-page">
+  <!-- PROTECTED DASHBOARD -->
+  <main
+    id="adminDashboard"
+    class="admin-dashboard-page"
+    data-admin-protected
+    hidden
+  >
 
     <!-- HERO -->
     <section class="admin-dashboard-hero">
       <div class="container">
-        <span class="section-eyebrow">Portal Administration</span>
+
+        <span class="section-eyebrow">
+          Portal Administration
+        </span>
+
         <h1>Admin Dashboard</h1>
+
         <p>
           Monitor registrations, job opportunities,
           recruitment progress and placement outcomes.
         </p>
+
       </div>
     </section>
 
     <section class="admin-dashboard-content">
       <div class="container">
 
-        <div id="adminDashboardAlert"
-             role="alert"
-             hidden></div>
+        <!-- LOGOUT -->
+        <div class="admin-dashboard-logout">
+          <button
+            type="button"
+            id="adminLogout"
+            class="admin-logout-button"
+            data-admin-logout
+          >
+            Sign Out
+          </button>
+        </div>
+
+        <!-- ALERT -->
+        <div
+          id="adminDashboardAlert"
+          role="alert"
+          aria-live="polite"
+          hidden
+        ></div>
 
         <!-- DATE FILTERS -->
         <div class="admin-filter-card">
@@ -53,15 +130,22 @@
           <div class="admin-filter-heading">
             <div>
               <h2>Reporting Period</h2>
-              <p>Select a duration to view dashboard performance.</p>
+              <p>
+                Select a duration to view dashboard performance.
+              </p>
             </div>
           </div>
 
-          <form id="adminDashboardFilterForm"
-                class="admin-filter-form">
+          <form
+            id="adminDashboardFilterForm"
+            class="admin-filter-form"
+          >
 
             <div class="admin-filter-field">
-              <label for="adminDatePreset">Duration</label>
+              <label for="adminDatePreset">
+                Duration
+              </label>
+
               <select id="adminDatePreset">
                 <option value="all">All Time</option>
                 <option value="today">Today</option>
@@ -72,23 +156,43 @@
               </select>
             </div>
 
-            <div class="admin-filter-field"
-                 id="adminFromDateWrap"
-                 hidden>
-              <label for="adminFromDate">From Date</label>
-              <input type="date" id="adminFromDate">
+            <div
+              class="admin-filter-field"
+              id="adminFromDateWrap"
+              hidden
+            >
+              <label for="adminFromDate">
+                From Date
+              </label>
+
+              <input
+                type="date"
+                id="adminFromDate"
+              >
             </div>
 
-            <div class="admin-filter-field"
-                 id="adminToDateWrap"
-                 hidden>
-              <label for="adminToDate">To Date</label>
-              <input type="date" id="adminToDate">
+            <div
+              class="admin-filter-field"
+              id="adminToDateWrap"
+              hidden
+            >
+              <label for="adminToDate">
+                To Date
+              </label>
+
+              <input
+                type="date"
+                id="adminToDate"
+              >
             </div>
 
-            <button type="submit"
-                    id="adminApplyFilter"
-                    class="btn-primary">
+            <button
+              type="submit"
+              id="adminApplyFilter"
+              class="btn-primary"
+              disabled
+              title="Available after live metrics integration"
+            >
               Apply Filter
             </button>
 
@@ -98,6 +202,7 @@
         <!-- SUMMARY CARDS -->
         <div class="admin-section-heading">
           <h2>Portal Overview</h2>
+
           <p id="adminSelectedPeriodLabel">
             All-time overview
           </p>
@@ -157,12 +262,16 @@
 
         <!-- RECRUITMENT PIPELINE -->
         <section class="admin-panel-card">
+
           <div class="admin-panel-heading">
             <h2>Recruitment Pipeline</h2>
-            <p>Application progress across recruitment stages.</p>
+            <p>
+              Application progress across recruitment stages.
+            </p>
           </div>
 
           <div class="admin-pipeline-grid">
+
             <div class="admin-pipeline-item">
               <span>Applied</span>
               <strong id="adminPipelineApplied">—</strong>
@@ -182,6 +291,7 @@
               <span>Rejected</span>
               <strong id="adminPipelineRejected">—</strong>
             </div>
+
           </div>
         </section>
 
@@ -190,17 +300,23 @@
 
           <div class="admin-panel-heading">
             <h2>Download Reports</h2>
+
             <p>
               Export complete records or data from the
               selected reporting period.
             </p>
           </div>
 
-          <form id="adminExportForm"
-                class="admin-export-form">
+          <form
+            id="adminExportForm"
+            class="admin-export-form"
+          >
 
             <div class="admin-filter-field">
-              <label for="adminExportSegment">Data Segment</label>
+              <label for="adminExportSegment">
+                Data Segment
+              </label>
+
               <select id="adminExportSegment">
                 <option value="all">Complete MIS</option>
                 <option value="candidates">Candidates</option>
@@ -215,41 +331,57 @@
             </div>
 
             <div class="admin-filter-field">
-              <label for="adminExportPeriod">Export Duration</label>
+              <label for="adminExportPeriod">
+                Export Duration
+              </label>
+
               <select id="adminExportPeriod">
-                <option value="selected">Selected Dashboard Period</option>
-                <option value="all">All Time</option>
+                <option value="selected">
+                  Selected Dashboard Period
+                </option>
+                <option value="all">
+                  All Time
+                </option>
               </select>
             </div>
 
             <div class="admin-filter-field">
-              <label for="adminExportFormat">Format</label>
+              <label for="adminExportFormat">
+                Format
+              </label>
+
               <select id="adminExportFormat">
                 <option value="xlsx">Excel (.xlsx)</option>
                 <option value="csv">CSV (.csv)</option>
               </select>
             </div>
 
-            <button type="submit"
-                    id="adminDownloadReport"
-                    class="btn-primary"
-                    disabled
-                    title="Available after secure export integration">
+            <button
+              type="submit"
+              id="adminDownloadReport"
+              class="btn-primary"
+              disabled
+              title="Available after secure export integration"
+            >
               Download Report
             </button>
 
           </form>
 
-          <p id="adminExportMessage"
-             class="admin-export-note"
-             aria-live="polite">
+          <p
+            id="adminExportMessage"
+            class="admin-export-note"
+            aria-live="polite"
+          >
             Secure report downloads will be enabled
             after backend integration.
           </p>
+
         </section>
 
         <!-- QUICK ACTIONS -->
         <section class="admin-panel-card">
+
           <div class="admin-panel-heading">
             <h2>Quick Management</h2>
             <p>Access administrative modules.</p>
@@ -263,6 +395,7 @@
             <a href="reports.html">Reports & MIS</a>
             <a href="settings.html">Settings</a>
           </div>
+
         </section>
 
       </div>
@@ -272,17 +405,13 @@
 
   <div id="siteFooter"></div>
 
-  <!-- CORE JS -->
-  <script src="../js/core/config.js"></script>
-  <script src="../js/core/api.js"></script>
-  <script src="../js/core/session.js"></script>
+  <!-- EXISTING COMMON JS -->
+  <script defer src="../js/core/config.js"></script>
+  <script defer src="../js/core/api.js"></script>
+  <script defer src="../js/core/session.js"></script>
 
-  <!-- COMMON -->
-  <script src="../js/common/header.js"></script>
-  <script src="../js/common/footer.js"></script>
-
-  <!-- PAGE JS - TO BE CREATED NEXT -->
-  <script src="../js/admin/dashboard.js"></script>
+  <script defer src="../js/common/header.js"></script>
+  <script defer src="../js/common/footer.js"></script>
 
 </body>
 </html>
