@@ -1,0 +1,66 @@
+
+/**
+ * UCPP V2 — Admin Frontend Configuration
+ * File: js/admin/admin-config.js
+ * Version: 1.0
+ *
+ * Centralized configuration for Admin Portal.
+ *
+ * IMPORTANT:
+ * - No passwords, API secrets or private keys.
+ * - Existing Candidate/Employer configuration untouched.
+ * - Admin authentication is enforced by the backend.
+ */
+
+(function (window) {
+  'use strict';
+
+  /**
+   * Replace this value with the approved
+   * UCPP V2 Google Apps Script Web App URL.
+   *
+   * Do not use the Apps Script editor URL.
+   * Use the deployed URL ending in /exec.
+   */
+  const API_URL = '';
+
+  const SESSION = Object.freeze({
+    STORAGE_KEY: 'ucpp_v2_admin_session',
+    EMAIL_STORAGE_KEY: 'ucpp_v2_admin_remember_email',
+    MAX_AGE_SECONDS: 21600
+  });
+
+  const PATHS = Object.freeze({
+    LOGIN: 'login.html',
+    DASHBOARD: 'dashboard.html'
+  });
+
+  const ACTIONS = Object.freeze({
+    LOGIN: 'adminLogin',
+    VALIDATE_SESSION: 'validateAdminSession',
+    LOGOUT: 'logoutAdmin',
+    DASHBOARD: 'getAdminDashboard'
+  });
+
+  const REQUEST = Object.freeze({
+    TIMEOUT_MS: 30000
+  });
+
+  const CONFIG = Object.freeze({
+    APP_NAME: 'Udayan Care Placement Portal',
+    MODULE_NAME: 'UCPP Admin Portal',
+    VERSION: '1.0.0',
+    API_URL: API_URL.trim(),
+    SESSION,
+    PATHS,
+    ACTIONS,
+    REQUEST
+  });
+
+  Object.defineProperty(window, 'UCPP_ADMIN_CONFIG', {
+    value: CONFIG,
+    writable: false,
+    configurable: false
+  });
+
+})(window);
