@@ -2,21 +2,22 @@
 /**
  * UCPP V2 — Admin API Client
  * File: js/admin/admin-api.js
- * Version: 1.0
+ * Version: 2.0
  *
  * Handles:
- * - Admin login
+ * - Admin login with cryptographically random token
  * - Session validation
  * - Admin logout
  * - Protected dashboard requests
  *
- * Does not modify existing Candidate/Employer APIs.
+ * Does not modify Candidate/Employer APIs.
  *
  * SECURITY:
+ * - Generates 256-bit session tokens using Web Crypto.
  * - Never logs passwords or session tokens.
  * - Requires HTTPS Apps Script endpoint.
  * - Does not automatically persist tokens.
- * - Backend remains the authority for authentication.
+ * - Backend verifies credentials before registering token.
  */
 
 (function (window) {
@@ -43,7 +44,9 @@
     try {
       parsed = new URL(url);
     } catch (_) {
-      throw new Error('Invalid Admin API configuration.');
+      throw new Error(
+        'Invalid Admin API configuration.'
+      );
     }
 
     if (
@@ -55,7 +58,9 @@
       parsed.search ||
       parsed.hash
     ) {
-      throw new Error('Invalid Admin API endpoint.');
+      throw new Error(
+        'Invalid Admin API endpoint.'
+      );
     }
 
     return parsed.href;
@@ -67,10 +72,36 @@
       typeof payload !== 'object' ||
       Array.isArray(payload)
     ) {
-      throw new Error('Invalid response received from the server.');
+      throw new Error(
+        'Invalid response received from the server.'
+      );
     }
 
     return payload;
+  }
+
+  /**
+   * Generate 32 cryptographically random bytes
+   * and encode them as 64 lowercase hex characters.
+   */
+  function generateSessionToken() {
+    if (
+      !window.isSecureContext ||
+      !window.crypto ||
+      typeof window.crypto.getRandomValues !== 'function'
+    ) {
+      throw new Error(
+        'Secure browser cryptography is unavailable.'
+      );
+    }
+
+    const bytes = new Uint8Array(32);
+
+    window.crypto.getRandomValues(bytes);
+
+    return Array.from(bytes, function (byte) {
+      return byte.toString(16).padStart(2, '0');
+    }).join('');
   }
 
   async function request(action, payload = {}) {
@@ -83,7 +114,9 @@
       typeof payload !== 'object' ||
       Array.isArray(payload)
     ) {
-      throw new Error('Invalid Admin API request.');
+      throw new Error(
+        'Invalid Admin API request.'
+      );
     }
 
     const controller = new AbortController();
@@ -98,11 +131,10 @@
 
     try {
       /*
-       * text/plain avoids a CORS preflight for this
-       * Apps Script POST request.
+       * text/plain avoids CORS preflight
+       * for Google Apps Script requests.
        *
-       * Never use mode: 'no-cors' because that produces
-       * an unreadable opaque response.
+       * Do not use mode: 'no-cors'.
        */
       const response = await fetch(url, {
         method: 'POST',
@@ -125,11 +157,9 @@
         );
       }
 
-      const result = normalizeResponse(
+      return normalizeResponse(
         await response.json()
       );
-
-      return result;
 
     } catch (error) {
       if (error && error.name === 'AbortError') {
@@ -151,10 +181,20 @@
     }
   }
 
+  /**
+   * Generate a new session token for each
+   * login attempt.
+   *
+   * The server registers it only after
+   * successful password verification.
+   */
   function login(email, password) {
+    const sessionToken = generateSessionToken();
+
     return request(CONFIG.ACTIONS.LOGIN, {
       email: String(email || '').trim(),
-      password: String(password || '')
+      password: String(password || ''),
+      sessionToken: sessionToken
     });
   }
 
@@ -184,10 +224,14 @@
     getDashboard
   });
 
-  Object.defineProperty(window, 'UCPP_ADMIN_API', {
-    value: API,
-    writable: false,
-    configurable: false
-  });
+  Object.defineProperty(
+    window,
+    'UCPP_ADMIN_API',
+    {
+      value: API,
+      writable: false,
+      configurable: false
+    }
+  );
 
 })(window);
