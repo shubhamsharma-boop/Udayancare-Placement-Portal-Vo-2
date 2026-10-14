@@ -613,17 +613,24 @@
       'click',
       function () {
 
-        if (
-          window.UCPP_SESSION &&
-          typeof window.UCPP_SESSION.logout ===
-            'function'
-        ) {
 
-          window.UCPP_SESSION.logout();
+if (
+  window.UCPP_SESSION &&
+  typeof window.UCPP_SESSION.logout === 'function'
+) {
 
-          return;
+  const confirmed = window.confirm(
+    'Are you sure you want to log out of your account?'
+  );
 
-        }
+  if (!confirmed) {
+    return;
+  }
+
+  window.UCPP_SESSION.logout();
+  return;
+}
+
 
 
         console.warn(
