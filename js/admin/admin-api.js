@@ -1,32 +1,50 @@
 
 /**
+ * =========================================================
  * UCPP V2 — Admin API Client
  * File: js/admin/admin-api.js
- * Version: 3.0
+ * Version: 4.0
  *
- * Features:
+ * FEATURES:
  * - Secure admin login
- * - Session validation
- * - Logout
+ * - Cryptographically secure session token
+ * - Admin session validation
+ * - Secure logout
  * - Live dashboard metrics
  * - Reporting-period filters
- * - Protected CSV export requests
+ * - Secure CSV export
+ * - Secure Excel (.xlsx) export
+ * - Custom date-range support
+ * - Request timeout handling
  *
  * Existing Candidate/Employer APIs unaffected.
+ * =========================================================
  */
 
 (function (window) {
   'use strict';
 
+  // =====================================================
+  // CONFIGURATION
+  // =====================================================
+
   const CONFIG = window.UCPP_ADMIN_CONFIG;
 
   if (!CONFIG) {
-    console.error('UCPP Admin configuration is missing.');
+    console.error(
+      'UCPP Admin configuration is missing.'
+    );
     return;
   }
 
+  // =====================================================
+  // API URL VALIDATION
+  // =====================================================
+
   function getApiUrl() {
-    const url = String(CONFIG.API_URL || '').trim();
+    const url = String(
+      CONFIG.API_URL || ''
+    ).trim();
 
     if (!url) {
       throw new Error(
@@ -47,7 +65,9 @@
     if (
       parsed.protocol !== 'https:' ||
       parsed.hostname !== 'script.google.com' ||
-      !/^\/macros\/s\/[^/]+\/exec\/?$/.test(parsed.pathname) ||
+      !/^\/macros\/s\/[^/]+\/exec\/?$/.test(
+        parsed.pathname
+      ) ||
       parsed.username ||
       parsed.password ||
       parsed.search ||
@@ -60,6 +80,10 @@
 
     return parsed.href;
   }
+
+  // =====================================================
+  // RESPONSE VALIDATION
+  // =====================================================
 
   function normalizeResponse(payload) {
     if (
@@ -74,6 +98,10 @@
 
     return payload;
   }
+
+  // =====================================================
+  // SECURE SESSION TOKEN GENERATION
+  // =====================================================
 
   function generateSessionToken() {
     if (
@@ -90,10 +118,19 @@
 
     window.crypto.getRandomValues(bytes);
 
-    return Array.from(bytes, function (byte) {
-      return byte.toString(16).padStart(2, '0');
-    }).join('');
+    return Array.from(
+      bytes,
+      function (byte) {
+        return byte
+          .toString(16)
+          .padStart(2, '0');
+      }
+    ).join('');
   }
+
+  // =====================================================
+  // COMMON API REQUEST HANDLER
+  // =====================================================
 
   async function request(action, payload = {}) {
     const url = getApiUrl();
@@ -112,12 +149,28 @@
 
     const controller = new AbortController();
 
+    const configuredTimeout = Number(
+      CONFIG.REQUEST?.TIMEOUT_MS
+    );
+
     const timeoutMs =
-      Number(CONFIG.REQUEST.TIMEOUT_MS) || 30000;
+      Number.isFinite(configuredTimeout) &&
+      configuredTimeout > 0
+        ? configuredTimeout
+        : 30000;
+
+    // XLSX generation can take longer than
+    // standard dashboard requests.
+    const effectiveTimeout =
+      action === 'exportAdminData'
+        ? Math.max(timeoutMs, 120000)
+        : timeoutMs;
 
     const timeout = window.setTimeout(
-      () => controller.abort(),
-      timeoutMs
+      function () {
+        controller.abort();
+      },
+      effectiveTimeout
     );
 
     try {
@@ -126,13 +179,17 @@
         redirect: 'follow',
         credentials: 'omit',
         cache: 'no-store',
+
         headers: {
-          'Content-Type': 'text/plain;charset=UTF-8'
+          'Content-Type':
+            'text/plain;charset=UTF-8'
         },
+
         body: JSON.stringify({
           ...payload,
           action
         }),
+
         signal: controller.signal
       });
 
@@ -142,12 +199,15 @@
         );
       }
 
-      return normalizeResponse(
-        await response.json()
-      );
+      const result = await response.json();
+
+      return normalizeResponse(result);
 
     } catch (error) {
-      if (error && error.name === 'AbortError') {
+      if (
+        error &&
+        error.name === 'AbortError'
+      ) {
         throw new Error(
           'The server took too long to respond. Please try again.'
         );
@@ -166,65 +226,157 @@
     }
   }
 
-  /**
-   * ADMIN LOGIN
-   */
+  // =====================================================
+  // ADMIN LOGIN
+  // =====================================================
+
   function login(email, password) {
-    const sessionToken = generateSessionToken();
+    const sessionToken =
+      generateSessionToken();
 
-    return request(CONFIG.ACTIONS.LOGIN, {
-      email: String(email || '').trim(),
-      password: String(password || ''),
-      sessionToken
-    });
+    return request(
+      CONFIG.ACTIONS.LOGIN,
+      {
+        email: String(
+          email || ''
+        ).trim(),
+
+        password: String(
+          password || ''
+        ),
+
+        sessionToken
+      }
+    );
   }
 
-  /**
-   * SESSION VALIDATION
-   */
+  // =====================================================
+  // SESSION VALIDATION
+  // =====================================================
+
   function validateSession(token) {
-    return request(CONFIG.ACTIONS.VALIDATE_SESSION, {
-      token: String(token || '').trim()
-    });
+    return request(
+      CONFIG.ACTIONS.VALIDATE_SESSION,
+      {
+        token: String(
+          token || ''
+        ).trim()
+      }
+    );
   }
 
-  /**
-   * LOGOUT
-   */
+  // =====================================================
+  // ADMIN LOGOUT
+  // =====================================================
+
   function logout(token) {
-    return request(CONFIG.ACTIONS.LOGOUT, {
-      token: String(token || '').trim()
-    });
+    return request(
+      CONFIG.ACTIONS.LOGOUT,
+      {
+        token: String(
+          token || ''
+        ).trim()
+      }
+    );
   }
 
+  // =====================================================
+  // LIVE DASHBOARD METRICS
+  // =====================================================
+
   /**
-   * DASHBOARD METRICS
+   * Supported backend periods:
    *
-   * Supports:
    * all
    * this_month
    * last_month
    * custom
+   *
+   * Today and Last 7 Days are converted
+   * into custom dates by dashboard.js.
    */
-  function getDashboard(token, options = {}) {
-    return request(CONFIG.ACTIONS.DASHBOARD, {
-      token: String(token || '').trim(),
-      period: String(options.period || 'all'),
-      startDate: String(options.startDate || ''),
-      endDate: String(options.endDate || '')
-    });
+
+  function getDashboard(
+    token,
+    options = {}
+  ) {
+    return request(
+      CONFIG.ACTIONS.DASHBOARD,
+      {
+        token: String(
+          token || ''
+        ).trim(),
+
+        period: String(
+          options.period || 'all'
+        ).trim().toLowerCase(),
+
+        startDate: String(
+          options.startDate || ''
+        ).trim(),
+
+        endDate: String(
+          options.endDate || ''
+        ).trim()
+      }
+    );
   }
 
+  // =====================================================
+  // SECURE REPORT EXPORT — CSV + XLSX
+  // =====================================================
+
   /**
-   * SECURE REPORT EXPORT
+   * Supported report segments:
    *
-   * Backend currently supports CSV only.
+   * candidates
+   * employers
+   * jobs
+   * applications
+   * enquiries
    *
-   * Supported segments:
-   * candidates, employers, jobs,
-   * applications, enquiries
+   * Supported formats:
+   *
+   * csv
+   * xlsx
+   *
+   * Supported periods:
+   *
+   * all
+   * this_month
+   * last_month
+   * custom
+   *
+   * Backend response:
+   *
+   * CSV:
+   * {
+   *   success: true,
+   *   filename: "UCPP_Candidates_2026-10-14.csv",
+   *   mimeType: "text/csv;charset=utf-8",
+   *   content: "...",
+   *   rowCount: 100
+   * }
+   *
+   * XLSX:
+   * {
+   *   success: true,
+   *   filename: "UCPP_Candidates_2026-10-14.xlsx",
+   *   mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+   *   encoding: "base64",
+   *   content: "...",
+   *   rowCount: 100
+   * }
    */
-  function exportData(token, options = {}) {
+
+  function exportData(
+    token,
+    options = {}
+  ) {
+    const cleanToken = String(
+      token || ''
+    ).trim();
+
     const segment = String(
       options.segment || ''
     ).trim().toLowerCase();
@@ -237,6 +389,30 @@
       options.period || 'all'
     ).trim().toLowerCase();
 
+    const startDate = String(
+      options.startDate || ''
+    ).trim();
+
+    const endDate = String(
+      options.endDate || ''
+    ).trim();
+
+    // ---------------------------------------------
+    // AUTHENTICATION INPUT CHECK
+    // ---------------------------------------------
+
+    if (!cleanToken) {
+      return Promise.reject(
+        new Error(
+          'Administrator session is missing. Please sign in again.'
+        )
+      );
+    }
+
+    // ---------------------------------------------
+    // REPORT SEGMENT VALIDATION
+    // ---------------------------------------------
+
     const allowedSegments = [
       'candidates',
       'employers',
@@ -245,7 +421,9 @@
       'enquiries'
     ];
 
-    if (!allowedSegments.includes(segment)) {
+    if (
+      !allowedSegments.includes(segment)
+    ) {
       return Promise.reject(
         new Error(
           'Selected report is not available yet.'
@@ -253,23 +431,91 @@
       );
     }
 
-    if (format !== 'csv') {
+    // ---------------------------------------------
+    // FILE FORMAT VALIDATION
+    // ---------------------------------------------
+
+    const allowedFormats = [
+      'csv',
+      'xlsx'
+    ];
+
+    if (
+      !allowedFormats.includes(format)
+    ) {
       return Promise.reject(
         new Error(
-          'Excel export is not enabled yet. Please select CSV.'
+          'Unsupported export format. Select Excel or CSV.'
         )
       );
     }
 
-    return request('exportAdminData', {
-      token: String(token || '').trim(),
-      segment,
-      format,
-      period,
-      startDate: String(options.startDate || ''),
-      endDate: String(options.endDate || '')
-    });
+    // ---------------------------------------------
+    // REPORTING PERIOD VALIDATION
+    // ---------------------------------------------
+
+    const allowedPeriods = [
+      'all',
+      'all_time',
+      'this_month',
+      'last_month',
+      'custom'
+    ];
+
+    if (
+      !allowedPeriods.includes(period)
+    ) {
+      return Promise.reject(
+        new Error(
+          'Unsupported reporting period.'
+        )
+      );
+    }
+
+    if (period === 'custom') {
+      const datePattern =
+        /^\d{4}-\d{2}-\d{2}$/;
+
+      if (
+        !datePattern.test(startDate) ||
+        !datePattern.test(endDate)
+      ) {
+        return Promise.reject(
+          new Error(
+            'Please select valid From Date and To Date.'
+          )
+        );
+      }
+
+      if (startDate > endDate) {
+        return Promise.reject(
+          new Error(
+            'From Date cannot be after To Date.'
+          )
+        );
+      }
+    }
+
+    // ---------------------------------------------
+    // BACKEND REQUEST
+    // ---------------------------------------------
+
+    return request(
+      'exportAdminData',
+      {
+        token: cleanToken,
+        segment,
+        format,
+        period,
+        startDate,
+        endDate
+      }
+    );
   }
+
+  // =====================================================
+  // PUBLIC ADMIN API
+  // =====================================================
 
   const API = Object.freeze({
     request,
