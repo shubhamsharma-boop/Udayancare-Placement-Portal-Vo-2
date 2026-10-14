@@ -1214,3 +1214,69 @@
   }
 }
 
+
+/* =========================================================
+   UCPP V2 — HEADER LOGO SIZE FIX
+   Desktop + Tablet + Mobile
+   ========================================================= */
+
+.ucpp-header .ucpp-brand__logo {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+
+  width: 155px !important;
+  height: 65px !important;
+  flex: 0 0 155px !important;
+
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+
+  overflow: hidden;
+}
+
+.ucpp-header .ucpp-brand__logo img {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none;
+  object-fit: contain;
+}
+
+.ucpp-header .ucpp-brand {
+  gap: 10px;
+}
+
+/* Tablet */
+@media (max-width: 1024px) {
+  .ucpp-header .ucpp-brand__logo {
+    width: 145px !important;
+    height: 60px !important;
+    flex: 0 0 145px !important;
+  }
+}
+
+/* Mobile */
+@media (max-width: 650px) {
+  .ucpp-header .ucpp-brand__logo {
+    width: 110px !important;
+    height: 50px !important;
+    flex: 0 0 110px !important;
+  }
+
+  .ucpp-header .ucpp-brand {
+    gap: 7px;
+  }
+}
+
+/* Small mobile */
+@media (max-width: 430px) {
+  .ucpp-header .ucpp-brand__logo {
+    width: 90px !important;
+    height: 44px !important;
+    flex: 0 0 90px !important;
+  }
+}
