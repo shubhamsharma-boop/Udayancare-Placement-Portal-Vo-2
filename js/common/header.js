@@ -627,8 +627,65 @@ if (
     return;
   }
 
-  window.UCPP_SESSION.logout();
+
+const logoutButton = logoutButtonElement;
+
+// Prevent multiple logout clicks
+if (logoutButton.dataset.loggingOut === 'true') {
   return;
+}
+
+logoutButton.dataset.loggingOut = 'true';
+logoutButton.disabled = true;
+
+logoutButton.innerHTML = `
+  <span
+    style="
+      display: inline-block;
+      width: 15px;
+      height: 15px;
+      border: 2px solid currentColor;
+      border-right-color: transparent;
+      border-radius: 50%;
+      animation: ucppLogoutSpin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 8px;
+    "
+  ></span>
+  Logging out...
+`;
+
+// Add spinner animation once
+if (!document.getElementById('ucppLogoutSpinnerStyle')) {
+  const style = document.createElement('style');
+  style.id = 'ucppLogoutSpinnerStyle';
+  style.textContent = `
+    @keyframes ucppLogoutSpin {
+      to { transform: rotate(360deg); }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+// Allow browser to paint the loader before logout
+requestAnimationFrame(() => {
+  requestAnimationFrame(async () => {
+    try {
+      await window.UCPP_SESSION.logout();
+    } catch (error) {
+      console.error('Logout failed:', error);
+
+      logoutButton.disabled = false;
+      logoutButton.dataset.loggingOut = 'false';
+      logoutButton.textContent = 'Logout';
+
+      window.alert('Unable to log out. Please try again.');
+    }
+  });
+});
+
+return;
+
 }
 
 
