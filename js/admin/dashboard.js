@@ -3,16 +3,20 @@
  * =========================================================
  * UCPP V2 — Admin Dashboard Controller
  * File: js/admin/dashboard.js
- * Version: 7.0
+ * Version: 8.0
  *
- * - Secure admin authorization
+ * FEATURES:
+ * - Secure admin session validation
  * - Live dashboard metrics
  * - Recruitment pipeline
- * - Dashboard date filters
- * - Independent report duration filters
- * - Custom report date range
+ * - Dashboard reporting-period filters
+ * - Independent export duration filters
+ * - Custom date range selection
  * - Secure CSV downloads
- * - Excel UI reserved for backend integration
+ * - Genuine Excel (.xlsx) downloads
+ * - Session-aware logout
+ *
+ * Existing Candidate/Employer modules unaffected.
  * =========================================================
  */
 
@@ -27,6 +31,7 @@
   let loggingOut = false;
   let loadingDashboard = false;
   let exportingReport = false;
+  let authorized = false;
 
   let appliedPeriod = {
     period: 'all',
@@ -45,6 +50,22 @@
   const exportForm = $('adminExportForm');
   const exportButton = $('adminDownloadReport');
 
+  const AVAILABLE_REPORTS = Object.freeze([
+    'candidates',
+    'employers',
+    'jobs',
+    'applications',
+    'enquiries'
+  ]);
+
+  const AVAILABLE_FORMATS = Object.freeze([
+    'xlsx',
+    'csv'
+  ]);
+
+  const XLSX_MIME =
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
   const METRIC_IDS = Object.freeze({
     newCandidates: 'adminCandidatesCount',
     newEmployers: 'adminEmployersCount',
@@ -55,14 +76,6 @@
     rejected: 'adminRejectedCount',
     verifiedPlacements: 'adminPlacementsCount'
   });
-
-  const AVAILABLE_REPORTS = Object.freeze([
-    'candidates',
-    'employers',
-    'jobs',
-    'applications',
-    'enquiries'
-  ]);
 
   // =====================================================
   // COMMON UI HELPERS
@@ -149,6 +162,17 @@
       : '—';
   }
 
+  function updateExportButton() {
+    if (!exportButton) return;
+
+    exportButton.disabled =
+      !authorized ||
+      !token ||
+      loggingOut ||
+      exportingReport ||
+      typeof API?.exportData !== 'function';
+  }
+
   // =====================================================
   // SESSION MANAGEMENT
   // =====================================================
@@ -164,6 +188,7 @@
 
     token = null;
     admin = null;
+    authorized = false;
   }
 
   function readSession() {
@@ -203,8 +228,9 @@
   }
 
   function denyAccess(message, shouldRedirect) {
+    authorized = false;
     hideDashboard();
-    disableExport();
+    updateExportButton();
     showMessage(message);
 
     if (shouldRedirect) {
@@ -251,11 +277,16 @@
   }
 
   function validDateKey(value) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    if (
+      typeof value !== 'string' ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(value)
+    ) {
       return false;
     }
 
-    const date = new Date(value + 'T00:00:00Z');
+    const date = new Date(
+      value + 'T00:00:00Z'
+    );
 
     return (
       !Number.isNaN(date.getTime()) &&
@@ -316,8 +347,13 @@
       }
 
       case 'custom': {
-        const start = String(startDate || '').trim();
-        const end = String(endDate || '').trim();
+        const start = String(
+          startDate || ''
+        ).trim();
+
+        const end = String(
+          endDate || ''
+        ).trim();
 
         if (
           !validDateKey(start) ||
@@ -375,12 +411,19 @@
 
     const today = localDateKey(new Date());
 
-    if ($('adminFromDate')) {
-      $('adminFromDate').max = today;
+    const fromInput = $('adminFromDate');
+    const toInput = $('adminToDate');
+
+    if (fromInput) {
+      fromInput.max = today;
+      fromInput.required = custom;
+      fromInput.disabled = !custom;
     }
 
-    if ($('adminToDate')) {
-      $('adminToDate').max = today;
+    if (toInput) {
+      toInput.max = today;
+      toInput.required = custom;
+      toInput.disabled = !custom;
     }
   }
 
@@ -395,13 +438,8 @@
     const fromWrap = $('adminExportFromDateWrap');
     const toWrap = $('adminExportToDateWrap');
 
-    if (fromWrap) {
-      fromWrap.hidden = !custom;
-    }
-
-    if (toWrap) {
-      toWrap.hidden = !custom;
-    }
+    if (fromWrap) fromWrap.hidden = !custom;
+    if (toWrap) toWrap.hidden = !custom;
 
     const today = localDateKey(new Date());
 
@@ -426,7 +464,7 @@
       );
     } else {
       setExportMessage(
-        'Select a report and click Download Report.'
+        'Select a report, duration and format to download.'
       );
     }
   }
@@ -467,7 +505,10 @@
   function renderMetrics(metrics) {
     Object.entries(METRIC_IDS).forEach(
       ([key, id]) => {
-        setText(id, formatNumber(metrics[key]));
+        setText(
+          id,
+          formatNumber(metrics[key])
+        );
       }
     );
 
@@ -496,7 +537,7 @@
     periodOptions,
     initial = false
   ) {
-    if (loadingDashboard || !token) return;
+    if (loadingDashboard || !token) return false;
 
     loadingDashboard = true;
 
@@ -525,7 +566,7 @@
             'Your session has expired.',
             true
           );
-          return;
+          return false;
         }
 
         throw new Error(
@@ -549,7 +590,7 @@
         period: periodOptions.period,
         startDate: periodOptions.startDate || '',
         endDate: periodOptions.endDate || '',
-        label: periodOptions.label
+        label: periodOptions.label || 'All Time'
       };
 
       setText(
@@ -561,13 +602,15 @@
       showDashboard();
       showAlert('');
 
+      return true;
+
     } catch (error) {
       console.error(
         '[UCPP ADMIN] Dashboard error:',
         error
       );
 
-      if (initial) {
+      if (initial && authorized) {
         removeMessage();
         showDashboard();
       }
@@ -577,18 +620,20 @@
         'Unable to load dashboard metrics.'
       );
 
+      return false;
+
     } finally {
       loadingDashboard = false;
 
       if (filterButton) {
-        filterButton.disabled = false;
+        filterButton.disabled = !authorized;
         filterButton.textContent = 'Apply Filter';
       }
     }
   }
 
   // =====================================================
-  // CSV DOWNLOAD
+  // EXPORT CONFIGURATION
   // =====================================================
 
   function configureExportForm() {
@@ -598,86 +643,86 @@
     if (segmentSelect) {
       Array.from(segmentSelect.options).forEach(
         option => {
-          if (
-            !AVAILABLE_REPORTS.includes(option.value)
-          ) {
-            option.disabled = true;
+          const available =
+            AVAILABLE_REPORTS.includes(option.value);
 
-            if (
-              !option.textContent.includes(
-                'Coming Soon'
-              )
-            ) {
-              option.textContent +=
-                ' — Coming Soon';
-            }
+          option.disabled = !available;
+
+          if (
+            !available &&
+            !option.textContent.includes('Coming Soon')
+          ) {
+            option.textContent += ' — Coming Soon';
           }
         }
       );
 
-      segmentSelect.value = 'candidates';
+      if (
+        !AVAILABLE_REPORTS.includes(
+          segmentSelect.value
+        )
+      ) {
+        segmentSelect.value = 'candidates';
+      }
     }
 
     if (formatSelect) {
-      const xlsxOption =
-        formatSelect.querySelector(
-          'option[value="xlsx"]'
-        );
+      Array.from(formatSelect.options).forEach(
+        option => {
+          option.disabled =
+            !AVAILABLE_FORMATS.includes(option.value);
+        }
+      );
 
-      if (xlsxOption) {
-        xlsxOption.disabled = true;
-        xlsxOption.textContent =
-          'Excel (.xlsx) — Backend Pending';
+      // Enable genuine Excel download.
+      const excelOption = formatSelect.querySelector(
+        'option[value="xlsx"]'
+      );
+
+      if (excelOption) {
+        excelOption.disabled = false;
+        excelOption.textContent = 'Excel (.xlsx)';
       }
 
-      formatSelect.value = 'csv';
+      // Default to Excel.
+      formatSelect.value = 'xlsx';
     }
 
-    disableExport();
+    updateExportButton();
     updateExportDateFields();
   }
 
-  function enableExport() {
-    if (
-      exportButton &&
-      token &&
-      typeof API?.exportData === 'function'
-    ) {
-      exportButton.disabled = false;
+  // =====================================================
+  // FILE DOWNLOAD HELPERS
+  // =====================================================
 
-      setExportMessage(
-        'Select a report, duration and CSV format.'
-      );
-    }
-  }
-
-  function disableExport() {
-    if (exportButton) {
-      exportButton.disabled = true;
-    }
-  }
-
-  function downloadCsv(filename, content) {
-    const blob = new Blob(
-      [content],
-      {
-        type: 'text/csv;charset=utf-8'
-      }
-    );
-
-    const url = URL.createObjectURL(blob);
-
-    const link = document.createElement('a');
-
-    link.href = url;
-
-    link.download = String(
-      filename || 'UCPP_Report.csv'
+  function sanitizeFilename(filename, extension) {
+    const safeName = String(
+      filename || `UCPP_Report.${extension}`
     )
       .split(/[\\/]/)
       .pop()
       .replace(/[^\w.\-]/g, '_');
 
+    if (
+      !safeName.toLowerCase().endsWith(
+        '.' + extension
+      )
+    ) {
+      throw new Error(
+        'Unexpected report file format.'
+      );
+    }
+
+    return safeName;
+  }
+
+  function downloadBlob(filename, blob) {
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
     link.style.display = 'none';
 
     document.body.appendChild(link);
@@ -686,16 +731,126 @@
 
     window.setTimeout(() => {
       URL.revokeObjectURL(url);
-    }, 1000);
+    }, 60000);
   }
+
+  function downloadCsv(filename, content) {
+    if (typeof content !== 'string') {
+      throw new Error(
+        'CSV report content is invalid.'
+      );
+    }
+
+    const safeName = sanitizeFilename(
+      filename,
+      'csv'
+    );
+
+    const blob = new Blob(
+      [content],
+      {
+        type: 'text/csv;charset=utf-8'
+      }
+    );
+
+    downloadBlob(safeName, blob);
+  }
+
+  function base64ToBytes(base64) {
+    if (
+      typeof base64 !== 'string' ||
+      !base64.trim()
+    ) {
+      throw new Error(
+        'Excel report content is missing.'
+      );
+    }
+
+    const clean = base64.replace(/\s/g, '');
+
+    if (
+      clean.length % 4 !== 0 ||
+      !/^[A-Za-z0-9+/]*={0,2}$/.test(clean)
+    ) {
+      throw new Error(
+        'Invalid Excel report encoding.'
+      );
+    }
+
+    let binary;
+
+    try {
+      binary = window.atob(clean);
+    } catch (_) {
+      throw new Error(
+        'Unable to decode Excel report.'
+      );
+    }
+
+    const bytes = new Uint8Array(binary.length);
+
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+
+    // XLSX is a ZIP-based format.
+    // Check its standard ZIP signature.
+    if (
+      bytes.length < 4 ||
+      bytes[0] !== 0x50 ||
+      bytes[1] !== 0x4b ||
+      !(
+        (bytes[2] === 0x03 && bytes[3] === 0x04) ||
+        (bytes[2] === 0x05 && bytes[3] === 0x06)
+      )
+    ) {
+      throw new Error(
+        'Server did not return a valid Excel workbook.'
+      );
+    }
+
+    return bytes;
+  }
+
+  function downloadXlsx(filename, content, encoding) {
+    if (
+      String(encoding || '').toLowerCase() !==
+      'base64'
+    ) {
+      throw new Error(
+        'Unexpected Excel report encoding.'
+      );
+    }
+
+    const safeName = sanitizeFilename(
+      filename,
+      'xlsx'
+    );
+
+    const bytes = base64ToBytes(content);
+
+    const blob = new Blob(
+      [bytes],
+      {
+        type: XLSX_MIME
+      }
+    );
+
+    downloadBlob(safeName, blob);
+  }
+
+  // =====================================================
+  // SECURE REPORT EXPORT
+  // =====================================================
 
   async function handleReportExport(event) {
     event.preventDefault();
 
     if (
       exportingReport ||
-      loadingDashboard ||
-      !token
+      !authorized ||
+      !token ||
+      loggingOut
     ) {
       return;
     }
@@ -715,7 +870,7 @@
     ).trim().toLowerCase();
 
     const format = String(
-      $('adminExportFormat')?.value || 'csv'
+      $('adminExportFormat')?.value || 'xlsx'
     ).trim().toLowerCase();
 
     if (!AVAILABLE_REPORTS.includes(segment)) {
@@ -725,9 +880,9 @@
       return;
     }
 
-    if (format !== 'csv') {
+    if (!AVAILABLE_FORMATS.includes(format)) {
       setExportMessage(
-        'Excel export is not enabled yet. Select CSV.'
+        'Please select Excel or CSV format.'
       );
       return;
     }
@@ -737,20 +892,25 @@
     try {
       periodOptions = getExportPeriod();
     } catch (error) {
-      setExportMessage(error.message);
+      setExportMessage(
+        error?.message ||
+        'Invalid reporting period.'
+      );
       return;
     }
 
     exportingReport = true;
+    updateExportButton();
 
     if (exportButton) {
-      exportButton.disabled = true;
       exportButton.textContent =
         'Preparing Report...';
     }
 
     setExportMessage(
-      'Generating report. Please wait...'
+      format === 'xlsx'
+        ? 'Generating Excel workbook. Please wait...'
+        : 'Generating CSV report. Please wait...'
     );
 
     try {
@@ -782,25 +942,34 @@
       }
 
       if (
-        typeof response.content !== 'string' ||
         typeof response.filename !== 'string' ||
-        !response.filename.toLowerCase()
-          .endsWith('.csv')
+        typeof response.content !== 'string'
       ) {
         throw new Error(
           'Report response is incomplete.'
         );
       }
 
-      downloadCsv(
-        response.filename,
-        response.content
-      );
+      if (format === 'xlsx') {
+        downloadXlsx(
+          response.filename,
+          response.content,
+          response.encoding
+        );
+      } else {
+        downloadCsv(
+          response.filename,
+          response.content
+        );
+      }
 
       setExportMessage(
-        'Report download started. ' +
+        'Report download started successfully. ' +
         formatNumber(response.rowCount) +
-        ' records exported. Duration: ' +
+        ' records exported. ' +
+        'Format: ' +
+        format.toUpperCase() +
+        '. Duration: ' +
         periodOptions.label
       );
 
@@ -821,10 +990,9 @@
       if (exportButton) {
         exportButton.textContent =
           'Download Report';
-
-        exportButton.disabled =
-          !token || loggingOut;
       }
+
+      updateExportButton();
     }
   }
 
@@ -833,8 +1001,9 @@
   // =====================================================
 
   async function verifyAccess() {
+    authorized = false;
     hideDashboard();
-    disableExport();
+    updateExportButton();
     clearMetrics();
 
     showMessage(
@@ -856,7 +1025,10 @@
     const savedToken = readSession();
 
     if (!savedToken) {
-      denyAccess('Please sign in.', true);
+      denyAccess(
+        'Please sign in.',
+        true
+      );
       return;
     }
 
@@ -864,7 +1036,10 @@
       const validation =
         await API.validateSession(savedToken);
 
-      if (!validation || validation.success !== true) {
+      if (
+        !validation ||
+        validation.success !== true
+      ) {
         if (isInvalidSession(validation)) {
           denyAccess(
             'Your session has expired.',
@@ -876,10 +1051,13 @@
             'Unable to verify your session.'
           );
         }
+
         return;
       }
 
-      const verifiedAdmin = extractAdmin(validation);
+      const verifiedAdmin = extractAdmin(
+        validation
+      );
 
       if (!verifiedAdmin) {
         showMessage(
@@ -890,32 +1068,46 @@
 
       token = savedToken;
       admin = verifiedAdmin;
+      authorized = true;
 
-      await loadDashboard(
+      const loaded = await loadDashboard(
         {
           period: 'all',
+          startDate: '',
+          endDate: '',
           label: 'All Time'
         },
         true
       );
 
-      if (dashboard && !dashboard.hidden) {
-        enableExport();
+      if (!authorized) return;
 
-        document.dispatchEvent(
-          new CustomEvent(
-            'ucpp:admin-authorized',
-            {
-              detail: {
-                admin: {
-                  name: String(admin.name || ''),
-                  role: String(admin.role || '')
-                }
+      if (!loaded) {
+        // Session is valid, but metrics could not load.
+        // Keep the authorized dashboard available.
+        removeMessage();
+        showDashboard();
+      }
+
+      updateExportButton();
+
+      document.dispatchEvent(
+        new CustomEvent(
+          'ucpp:admin-authorized',
+          {
+            detail: {
+              admin: {
+                name: String(
+                  admin.name || ''
+                ),
+                role: String(
+                  admin.role || ''
+                )
               }
             }
-          )
-        );
-      }
+          }
+        )
+      );
 
     } catch (error) {
       console.error(
@@ -923,6 +1115,8 @@
         error
       );
 
+      authorized = false;
+      updateExportButton();
       showMessage(
         'Unable to connect to the admin server. Please refresh.'
       );
@@ -940,7 +1134,8 @@
 
     const activeToken = token || readSession();
 
-    disableExport();
+    authorized = false;
+    updateExportButton();
     hideDashboard();
     showMessage('Signing out...');
 
@@ -975,13 +1170,22 @@
       async event => {
         event.preventDefault();
 
-        if (!token || loadingDashboard) return;
+        if (
+          !token ||
+          !authorized ||
+          loadingDashboard
+        ) {
+          return;
+        }
 
         try {
           const options = getDashboardPeriod();
           await loadDashboard(options);
         } catch (error) {
-          showAlert(error.message);
+          showAlert(
+            error?.message ||
+            'Invalid reporting period.'
+          );
         }
       }
     );
@@ -1026,7 +1230,11 @@
     validateAccess: verifyAccess,
     logout: logout,
     isAuthenticated: function () {
-      return Boolean(token && admin);
+      return Boolean(
+        authorized &&
+        token &&
+        admin
+      );
     }
   });
 
