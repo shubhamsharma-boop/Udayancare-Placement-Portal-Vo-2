@@ -420,14 +420,15 @@
         >
 
 
+
 <span
   class="ucpp-brand__logo"
   style="
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 150px;
-    height: 52px;
+    width: 210px;
+    height: 64px;
     padding: 0;
     background: transparent;
     border: none;
@@ -440,8 +441,8 @@
   <img
     src="${root}assets/images/udayan-care-logo.png"
     alt="Udayan Care Logo"
-    width="150"
-    height="52"
+    width="210"
+    height="64"
     style="
       display: block;
       width: 100%;
