@@ -419,9 +419,38 @@
           aria-label="Udayan Care Placement Portal"
         >
 
-          <span class="ucpp-brand__logo">
-            UC
-          </span>
+
+<span
+  class="ucpp-brand__logo"
+  style="
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 150px;
+    height: 52px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    overflow: visible;
+    flex-shrink: 0;
+  "
+>
+  <img
+    src="${root}assets/images/udayan-care-logo.png"
+    alt="Udayan Care Logo"
+    width="150"
+    height="52"
+    style="
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    "
+  >
+</span>
+
 
           <span class="ucpp-brand__content">
 
