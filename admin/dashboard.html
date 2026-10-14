@@ -7,8 +7,10 @@
 
   <title>Admin Dashboard | UCPP V2</title>
 
-  <meta name="description"
-        content="Udayan Care Placement Portal administration dashboard.">
+  <meta
+    name="description"
+    content="Udayan Care Placement Portal administration dashboard."
+  >
 
   <meta name="robots" content="noindex, nofollow">
 
@@ -24,13 +26,9 @@
   <!-- ADMIN PAGE CSS -->
   <link rel="stylesheet" href="../css/admin/dashboard.css">
 
-  <!--
-    SECURITY:
-    Keep protected dashboard content hidden until
-    backend session validation and authorization succeed.
-  -->
   <style>
-    [data-admin-protected][hidden] {
+    [data-admin-protected][hidden],
+    .admin-filter-field[hidden] {
       display: none !important;
     }
 
@@ -61,6 +59,69 @@
     .admin-logout-button:focus-visible {
       outline: 3px solid #4b93e8;
       outline-offset: 3px;
+    }
+
+    /* Report export fields */
+    .admin-export-form {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: end;
+      gap: 16px;
+    }
+
+    .admin-export-form .admin-filter-field {
+      flex: 1 1 180px;
+      min-width: 0;
+    }
+
+    .admin-export-form .admin-filter-field label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    .admin-export-form select,
+    .admin-export-form input[type="date"] {
+      width: 100%;
+      min-height: 44px;
+      padding: 10px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      background: #ffffff;
+      color: #1e293b;
+      font: inherit;
+      color-scheme: light;
+    }
+
+    .admin-export-form select:focus,
+    .admin-export-form input:focus {
+      outline: 2px solid #4b93e8;
+      outline-offset: 2px;
+    }
+
+    .admin-export-form button {
+      min-height: 44px;
+    }
+
+    .admin-export-note {
+      margin-top: 14px;
+      line-height: 1.6;
+    }
+
+    @media (max-width: 640px) {
+      .admin-export-form {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .admin-export-form .admin-filter-field {
+        width: 100%;
+        flex: none;
+      }
+
+      .admin-export-form button {
+        width: 100%;
+      }
     }
   </style>
 
@@ -124,7 +185,7 @@
           hidden
         ></div>
 
-        <!-- DATE FILTERS -->
+        <!-- DASHBOARD DATE FILTERS -->
         <div class="admin-filter-card">
 
           <div class="admin-filter-heading">
@@ -191,7 +252,6 @@
               id="adminApplyFilter"
               class="btn-primary"
               disabled
-              title="Available after live metrics integration"
             >
               Apply Filter
             </button>
@@ -204,7 +264,7 @@
           <h2>Portal Overview</h2>
 
           <p id="adminSelectedPeriodLabel">
-            All-time overview
+            All Time
           </p>
         </div>
 
@@ -295,15 +355,15 @@
           </div>
         </section>
 
-        <!-- DATA EXPORT -->
+        <!-- DOWNLOAD REPORTS -->
         <section class="admin-panel-card">
 
           <div class="admin-panel-heading">
             <h2>Download Reports</h2>
 
             <p>
-              Export complete records or data from the
-              selected reporting period.
+              Export approved portal records by report type,
+              reporting duration and file format.
             </p>
           </div>
 
@@ -312,6 +372,7 @@
             class="admin-export-form"
           >
 
+            <!-- REPORT TYPE -->
             <div class="admin-filter-field">
               <label for="adminExportSegment">
                 Data Segment
@@ -319,7 +380,7 @@
 
               <select id="adminExportSegment">
                 <option value="all">Complete MIS</option>
-                <option value="candidates">Candidates</option>
+                <option value="candidates" selected>Candidates</option>
                 <option value="employers">Employers</option>
                 <option value="jobs">Jobs</option>
                 <option value="applications">Applications</option>
@@ -330,6 +391,7 @@
               </select>
             </div>
 
+            <!-- INDEPENDENT REPORT DURATION -->
             <div class="admin-filter-field">
               <label for="adminExportPeriod">
                 Export Duration
@@ -339,20 +401,71 @@
                 <option value="selected">
                   Selected Dashboard Period
                 </option>
-                <option value="all">
+                <option value="all" selected>
                   All Time
+                </option>
+                <option value="today">
+                  Today
+                </option>
+                <option value="7days">
+                  Last 7 Days
+                </option>
+                <option value="month">
+                  This Month
+                </option>
+                <option value="lastmonth">
+                  Last Month
+                </option>
+                <option value="custom">
+                  Custom Date Range
                 </option>
               </select>
             </div>
 
+            <!-- CUSTOM DATE RANGE -->
+            <div
+              class="admin-filter-field"
+              id="adminExportFromDateWrap"
+              hidden
+            >
+              <label for="adminExportFromDate">
+                From Date
+              </label>
+
+              <input
+                type="date"
+                id="adminExportFromDate"
+              >
+            </div>
+
+            <div
+              class="admin-filter-field"
+              id="adminExportToDateWrap"
+              hidden
+            >
+              <label for="adminExportToDate">
+                To Date
+              </label>
+
+              <input
+                type="date"
+                id="adminExportToDate"
+              >
+            </div>
+
+            <!-- FILE FORMAT -->
             <div class="admin-filter-field">
               <label for="adminExportFormat">
-                Format
+                File Format
               </label>
 
               <select id="adminExportFormat">
-                <option value="xlsx">Excel (.xlsx)</option>
-                <option value="csv">CSV (.csv)</option>
+                <option value="xlsx">
+                  Excel (.xlsx)
+                </option>
+                <option value="csv" selected>
+                  CSV (.csv)
+                </option>
               </select>
             </div>
 
@@ -361,7 +474,6 @@
               id="adminDownloadReport"
               class="btn-primary"
               disabled
-              title="Available after secure export integration"
             >
               Download Report
             </button>
@@ -373,8 +485,8 @@
             class="admin-export-note"
             aria-live="polite"
           >
-            Secure report downloads will be enabled
-            after backend integration.
+            Report downloads are available after
+            administrator verification.
           </p>
 
         </section>
