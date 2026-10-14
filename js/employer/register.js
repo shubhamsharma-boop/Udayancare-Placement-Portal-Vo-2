@@ -5,13 +5,15 @@
  * =========================================================
  * UCPP V2 — Employer Registration
  * File: js/employer/register.js
- * Version: 1.0
+ * Version: 2.0
  *
- * CURRENT MODE:
- * Frontend validation only.
- *
- * No production Employer_Master writes.
- * No registration API calls.
+ * Features:
+ * - Full frontend validation
+ * - Password Show / Hide
+ * - Duplicate email and mobile error handling
+ * - Secure backend registration through UCPP_API
+ * - Prevent repeated submissions
+ * - Redirect to employer login after success
  *
  * Existing Employer Login / Dashboard unaffected.
  * =========================================================
@@ -19,9 +21,7 @@
 
 (function () {
 
-  const form = document.getElementById(
-    'employerRegisterForm'
-  );
+  const form = document.getElementById('employerRegisterForm');
 
   if (!form) return;
 
@@ -48,18 +48,13 @@
   const errors = {};
 
   Object.keys(fields).forEach(function (key) {
-    errors[key] = document.getElementById(
-      key + 'Error'
-    );
+    errors[key] = document.getElementById(key + 'Error');
   });
 
-  const status = document.getElementById(
-    'registerStatus'
-  );
+  const status = document.getElementById('registerStatus');
+  const submitButton = document.getElementById('registerButton');
 
-  const submitButton = document.getElementById(
-    'registerButton'
-  );
+  let submitting = false;
 
   function value(key) {
     return String(
@@ -113,9 +108,7 @@
   function requiredText(key, label, minLength) {
     clearError(key);
 
-    const text = value(key);
-
-    if (text.length < (minLength || 2)) {
+    if (value(key).length < (minLength || 2)) {
       return setError(
         key,
         'Please enter a valid ' + label + '.'
@@ -178,10 +171,8 @@
   function validateEmail() {
     clearError('email');
 
-    const email = value('email');
-
     if (
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value('email'))
     ) {
       return setError(
         'email',
@@ -193,19 +184,11 @@
   }
 
   function validateState() {
-    return requiredText(
-      'state',
-      'state',
-      2
-    );
+    return requiredText('state', 'state', 2);
   }
 
   function validateCity() {
-    return requiredText(
-      'city',
-      'city',
-      2
-    );
+    return requiredText('city', 'city', 2);
   }
 
   function validateWebsite() {
@@ -339,25 +322,32 @@
     return results.every(Boolean);
   }
 
-  // Clean mobile input.
-
+  /*
+   * MOBILE INPUT
+   */
   fields.mobile.addEventListener('input', function () {
     this.value = this.value
       .replace(/\D/g, '')
       .slice(0, 10);
+
+    clearError('mobile');
   });
 
-  // Normalize GSTIN.
-
+  /*
+   * GST INPUT
+   */
   fields.gstNumber.addEventListener('input', function () {
     this.value = this.value
       .toUpperCase()
       .replace(/[^A-Z0-9]/g, '')
       .slice(0, 15);
+
+    clearError('gstNumber');
   });
 
-  // Password visibility controls.
-
+  /*
+   * PASSWORD SHOW / HIDE
+   */
   form.querySelectorAll('.password-toggle')
     .forEach(function (button) {
 
@@ -381,8 +371,9 @@
 
     });
 
-  // Validate individual fields.
-
+  /*
+   * INDIVIDUAL FIELD VALIDATION
+   */
   const validators = {
     companyName: validateCompanyName,
     industry: validateIndustry,
@@ -419,17 +410,76 @@
     }
   });
 
-  // Backend integration pending.
-  // Keep account creation disabled until verified.
+  fields.email.addEventListener('input', function () {
+    clearError('email');
+  });
 
-  if (submitButton) {
-    submitButton.disabled = true;
-    submitButton.title =
-      'Registration will be enabled after secure backend integration';
+  /*
+   * BUTTON STATE
+   */
+  function setSubmitting(active) {
+    submitting = active;
+
+    if (!submitButton) return;
+
+    submitButton.disabled = active;
+
+    submitButton.textContent = active
+      ? 'Creating Account...'
+      : 'Create Employer Account';
   }
 
-  form.addEventListener('submit', function (event) {
+  /*
+   * ENABLE REGISTRATION
+   */
+  if (submitButton) {
+    submitButton.disabled = false;
+    submitButton.removeAttribute('title');
+  }
+
+  /*
+   * API ERROR HANDLING
+   */
+  function handleApiError(response) {
+    const code = String(
+      response && response.code || ''
+    ).toUpperCase();
+
+    const message = String(
+      response && response.message ||
+      'Unable to complete registration. Please try again.'
+    );
+
+    const errorFields = {
+      EMAIL_ALREADY_REGISTERED: 'email',
+      INVALID_EMAIL: 'email',
+      MOBILE_ALREADY_REGISTERED: 'mobile',
+      INVALID_MOBILE: 'mobile',
+      INVALID_PASSWORD: 'password',
+      INVALID_WEBSITE: 'website',
+      INVALID_GST: 'gstNumber'
+    };
+
+    const key = errorFields[code];
+
+    if (key) {
+      setError(key, message);
+
+      if (fields[key]) {
+        fields[key].focus();
+      }
+    }
+
+    showStatus(message, 'error');
+  }
+
+  /*
+   * SUBMIT REGISTRATION
+   */
+  form.addEventListener('submit', async function (event) {
     event.preventDefault();
+
+    if (submitting) return;
 
     clearStatus();
 
@@ -448,10 +498,84 @@
       return;
     }
 
+    if (
+      !window.UCPP_API ||
+      typeof window.UCPP_API.post !== 'function'
+    ) {
+      showStatus(
+        'Registration service is unavailable. Please refresh the page and try again.',
+        'error'
+      );
+      return;
+    }
+
+    const payload = {
+      companyName: value('companyName'),
+      companyType: value('companyType'),
+      industry: value('industry'),
+      website: value('website'),
+      companyDescription: value('companyDescription'),
+      contactPerson: value('contactPerson'),
+      designation: value('designation'),
+      mobile: value('mobile'),
+      email: value('email').toLowerCase(),
+      state: value('state'),
+      district: value('district'),
+      city: value('city'),
+      companyAddress: value('companyAddress'),
+      gstNumber: value('gstNumber').toUpperCase(),
+      password: fields.password.value
+    };
+
+    setSubmitting(true);
+
     showStatus(
-      'Employer registration form is ready. Secure account creation will be enabled after backend integration.',
+      'Creating your employer account. Please wait...',
       'info'
     );
+
+    try {
+      const response = await window.UCPP_API.post(
+        'employerRegister',
+        payload
+      );
+
+      if (!response || response.success !== true) {
+        handleApiError(response);
+        return;
+      }
+
+      showStatus(
+        'Employer account created successfully! Redirecting to login...',
+        'success'
+      );
+
+      form.reset();
+
+      if (submitButton) {
+        submitButton.disabled = true;
+      }
+
+      window.setTimeout(function () {
+        window.location.assign('login.html');
+      }, 1800);
+
+    } catch (error) {
+      console.error('Employer registration failed:', error);
+
+      showStatus(
+        'Unable to connect to the registration service. Please try again.',
+        'error'
+      );
+
+    } finally {
+      if (
+        !status ||
+        !status.classList.contains('register-status--success')
+      ) {
+        setSubmitting(false);
+      }
+    }
   });
 
 })();
