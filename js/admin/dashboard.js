@@ -3,18 +3,16 @@
  * =========================================================
  * UCPP V2 — Admin Dashboard Controller
  * File: js/admin/dashboard.js
- * Version: 6.0 — Live Dashboard & CSV Reports
+ * Version: 7.0
  *
- * FEATURES:
- * - Secure admin session validation
- * - Dashboard KPI metrics
+ * - Secure admin authorization
+ * - Live dashboard metrics
  * - Recruitment pipeline
- * - Date filters
- * - Secure CSV report downloads
- * - Applied dashboard period synchronization
- * - Logout
- *
- * Candidate/Employer modules are not modified.
+ * - Dashboard date filters
+ * - Independent report duration filters
+ * - Custom report date range
+ * - Secure CSV downloads
+ * - Excel UI reserved for backend integration
  * =========================================================
  */
 
@@ -26,42 +24,26 @@
 
   let token = null;
   let admin = null;
-
   let loggingOut = false;
   let loadingDashboard = false;
   let exportingReport = false;
 
-  // Last successfully applied dashboard filter.
   let appliedPeriod = {
     period: 'all',
+    startDate: '',
+    endDate: '',
     label: 'All Time'
   };
 
-  const dashboard = document.getElementById(
-    'adminDashboard'
-  );
+  const $ = id => document.getElementById(id);
 
-  const alertBox = document.getElementById(
-    'adminDashboardAlert'
-  );
-
-  const logoutButton = document.getElementById(
-    'adminLogout'
-  );
-
-  const filterButton = document.getElementById(
-    'adminApplyFilter'
-  );
-
-  const filterForm = document.getElementById(
-    'adminDashboardFilterForm'
-  );
-
-  const exportForm = document.getElementById(
-    'adminExportForm'
-  );
-
-  const $ = (id) => document.getElementById(id);
+  const dashboard = $('adminDashboard');
+  const alertBox = $('adminDashboardAlert');
+  const logoutButton = $('adminLogout');
+  const filterButton = $('adminApplyFilter');
+  const filterForm = $('adminDashboardFilterForm');
+  const exportForm = $('adminExportForm');
+  const exportButton = $('adminDownloadReport');
 
   const METRIC_IDS = Object.freeze({
     newCandidates: 'adminCandidatesCount',
@@ -83,31 +65,29 @@
   ]);
 
   // =====================================================
-  // UI HELPERS
+  // COMMON UI HELPERS
   // =====================================================
 
   function setText(id, value) {
     const element = $(id);
 
     if (element) {
-      element.textContent = String(
-        value ?? '—'
-      );
+      element.textContent = String(value ?? '—');
     }
   }
 
   function hideDashboard() {
-    if (dashboard) {
-      dashboard.hidden = true;
-      dashboard.style.display = 'none';
-    }
+    if (!dashboard) return;
+
+    dashboard.hidden = true;
+    dashboard.style.display = 'none';
   }
 
   function showDashboard() {
-    if (dashboard) {
-      dashboard.hidden = false;
-      dashboard.style.removeProperty('display');
-    }
+    if (!dashboard) return;
+
+    dashboard.hidden = false;
+    dashboard.style.removeProperty('display');
   }
 
   function showMessage(message) {
@@ -138,11 +118,7 @@
   }
 
   function removeMessage() {
-    const overlay = $('adminAccessMessage');
-
-    if (overlay) {
-      overlay.remove();
-    }
+    $('adminAccessMessage')?.remove();
   }
 
   function showAlert(message, type = 'error') {
@@ -150,16 +126,11 @@
 
     alertBox.textContent = message;
     alertBox.hidden = !message;
-    alertBox.className =
-      'profile-alert ' + type;
+    alertBox.className = 'profile-alert ' + type;
   }
 
   function setExportMessage(message) {
-    const element = $('adminExportMessage');
-
-    if (element) {
-      element.textContent = message;
-    }
+    setText('adminExportMessage', message);
   }
 
   function formatNumber(value) {
@@ -173,11 +144,9 @@
 
     const number = Number(value);
 
-    if (!Number.isFinite(number)) {
-      return '—';
-    }
-
-    return number.toLocaleString('en-IN');
+    return Number.isFinite(number)
+      ? number.toLocaleString('en-IN')
+      : '—';
   }
 
   // =====================================================
@@ -199,13 +168,11 @@
 
   function readSession() {
     try {
-      if (!CONFIG?.SESSION?.STORAGE_KEY) {
-        return null;
-      }
+      const key = CONFIG?.SESSION?.STORAGE_KEY;
 
-      const raw = sessionStorage.getItem(
-        CONFIG.SESSION.STORAGE_KEY
-      );
+      if (!key) return null;
+
+      const raw = sessionStorage.getItem(key);
 
       if (!raw) return null;
 
@@ -231,14 +198,13 @@
 
   function redirectLogin() {
     if (CONFIG?.PATHS?.LOGIN) {
-      window.location.replace(
-        CONFIG.PATHS.LOGIN
-      );
+      window.location.replace(CONFIG.PATHS.LOGIN);
     }
   }
 
   function denyAccess(message, shouldRedirect) {
     hideDashboard();
+    disableExport();
     showMessage(message);
 
     if (shouldRedirect) {
@@ -253,46 +219,30 @@
       'ADMIN_ACCESS_DENIED',
       'ADMIN_SESSION_REQUIRED',
       'ADMIN_SESSION_EXPIRED'
-    ].includes(
-      String(response?.code || '')
-    );
+    ].includes(String(response?.code || ''));
   }
 
   function extractAdmin(response) {
-    if (response?.admin) {
-      return response.admin;
-    }
-
-    if (response?.data?.admin) {
-      return response.data.admin;
-    }
-
-    return null;
+    return response?.admin ||
+      response?.data?.admin ||
+      null;
   }
 
   function extractDashboard(response) {
-    if (response?.dashboard) {
-      return response.dashboard;
-    }
-
-    if (response?.data?.dashboard) {
-      return response.data.dashboard;
-    }
-
-    return null;
+    return response?.dashboard ||
+      response?.data?.dashboard ||
+      null;
   }
 
   // =====================================================
-  // DATE FILTERS
+  // DATE HELPERS
   // =====================================================
 
   function localDateKey(date) {
     const year = date.getFullYear();
-
     const month = String(
       date.getMonth() + 1
     ).padStart(2, '0');
-
     const day = String(
       date.getDate()
     ).padStart(2, '0');
@@ -301,15 +251,11 @@
   }
 
   function validDateKey(value) {
-    if (
-      !/^\d{4}-\d{2}-\d{2}$/.test(value)
-    ) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
       return false;
     }
 
-    const date = new Date(
-      value + 'T00:00:00Z'
-    );
+    const date = new Date(value + 'T00:00:00Z');
 
     return (
       !Number.isNaN(date.getTime()) &&
@@ -317,131 +263,188 @@
     );
   }
 
-  function getPeriodPayload() {
-    const preset = String(
-      $('adminDatePreset')?.value || 'all'
-    );
-
+  function buildPeriod(preset, startDate, endDate) {
     const today = new Date();
     const todayKey = localDateKey(today);
 
-    if (preset === 'all') {
-      return {
-        period: 'all',
-        label: 'All Time'
-      };
-    }
+    switch (preset) {
+      case 'all':
+        return {
+          period: 'all',
+          startDate: '',
+          endDate: '',
+          label: 'All Time'
+        };
 
-    if (preset === 'month') {
-      return {
-        period: 'this_month',
-        label: 'This Month'
-      };
-    }
+      case 'month':
+        return {
+          period: 'this_month',
+          startDate: '',
+          endDate: '',
+          label: 'This Month'
+        };
 
-    if (preset === 'lastmonth') {
-      return {
-        period: 'last_month',
-        label: 'Last Month'
-      };
-    }
+      case 'lastmonth':
+        return {
+          period: 'last_month',
+          startDate: '',
+          endDate: '',
+          label: 'Last Month'
+        };
 
-    if (preset === 'today') {
-      return {
-        period: 'custom',
-        startDate: todayKey,
-        endDate: todayKey,
-        label: 'Today'
-      };
-    }
+      case 'today':
+        return {
+          period: 'custom',
+          startDate: todayKey,
+          endDate: todayKey,
+          label: 'Today'
+        };
 
-    if (preset === '7days') {
-      const start = new Date(
-        today.getFullYear(),
-        today.getMonth(),
-        today.getDate() - 6
-      );
-
-      return {
-        period: 'custom',
-        startDate: localDateKey(start),
-        endDate: todayKey,
-        label: 'Last 7 Days'
-      };
-    }
-
-    if (preset === 'custom') {
-      const startDate = String(
-        $('adminFromDate')?.value || ''
-      ).trim();
-
-      const endDate = String(
-        $('adminToDate')?.value || ''
-      ).trim();
-
-      if (
-        !validDateKey(startDate) ||
-        !validDateKey(endDate)
-      ) {
-        throw new Error(
-          'Please select valid From and To dates.'
+      case '7days': {
+        const start = new Date(
+          today.getFullYear(),
+          today.getMonth(),
+          today.getDate() - 6
         );
+
+        return {
+          period: 'custom',
+          startDate: localDateKey(start),
+          endDate: todayKey,
+          label: 'Last 7 Days'
+        };
       }
 
-      if (startDate > endDate) {
-        throw new Error(
-          'From Date cannot be after To Date.'
-        );
+      case 'custom': {
+        const start = String(startDate || '').trim();
+        const end = String(endDate || '').trim();
+
+        if (
+          !validDateKey(start) ||
+          !validDateKey(end)
+        ) {
+          throw new Error(
+            'Please select valid From Date and To Date.'
+          );
+        }
+
+        if (start > end) {
+          throw new Error(
+            'From Date cannot be after To Date.'
+          );
+        }
+
+        if (end > todayKey) {
+          throw new Error(
+            'To Date cannot be in the future.'
+          );
+        }
+
+        return {
+          period: 'custom',
+          startDate: start,
+          endDate: end,
+          label: `${start} to ${end}`
+        };
       }
 
-      if (endDate > todayKey) {
+      default:
         throw new Error(
-          'To Date cannot be in the future.'
+          'Unsupported reporting period.'
         );
-      }
-
-      return {
-        period: 'custom',
-        startDate,
-        endDate,
-        label: `${startDate} to ${endDate}`
-      };
     }
+  }
 
-    throw new Error(
-      'Unsupported reporting period.'
+  function getDashboardPeriod() {
+    return buildPeriod(
+      $('adminDatePreset')?.value || 'all',
+      $('adminFromDate')?.value,
+      $('adminToDate')?.value
     );
   }
 
   function updateDateFields() {
-    const isCustom =
+    const custom =
       $('adminDatePreset')?.value === 'custom';
 
     const fromWrap = $('adminFromDateWrap');
     const toWrap = $('adminToDateWrap');
 
+    if (fromWrap) fromWrap.hidden = !custom;
+    if (toWrap) toWrap.hidden = !custom;
+
+    const today = localDateKey(new Date());
+
+    if ($('adminFromDate')) {
+      $('adminFromDate').max = today;
+    }
+
+    if ($('adminToDate')) {
+      $('adminToDate').max = today;
+    }
+  }
+
+  // =====================================================
+  // INDEPENDENT EXPORT DATE FILTERS
+  // =====================================================
+
+  function updateExportDateFields() {
+    const custom =
+      $('adminExportPeriod')?.value === 'custom';
+
+    const fromWrap = $('adminExportFromDateWrap');
+    const toWrap = $('adminExportToDateWrap');
+
     if (fromWrap) {
-      fromWrap.hidden = !isCustom;
+      fromWrap.hidden = !custom;
     }
 
     if (toWrap) {
-      toWrap.hidden = !isCustom;
+      toWrap.hidden = !custom;
     }
 
-    const today = localDateKey(
-      new Date()
-    );
+    const today = localDateKey(new Date());
 
-    const fromInput = $('adminFromDate');
-    const toInput = $('adminToDate');
+    const fromInput = $('adminExportFromDate');
+    const toInput = $('adminExportToDate');
 
     if (fromInput) {
       fromInput.max = today;
+      fromInput.required = custom;
+      fromInput.disabled = !custom;
     }
 
     if (toInput) {
       toInput.max = today;
+      toInput.required = custom;
+      toInput.disabled = !custom;
     }
+
+    if (custom) {
+      setExportMessage(
+        'Select From Date and To Date, then download your report.'
+      );
+    } else {
+      setExportMessage(
+        'Select a report and click Download Report.'
+      );
+    }
+  }
+
+  function getExportPeriod() {
+    const preset = String(
+      $('adminExportPeriod')?.value || 'all'
+    );
+
+    if (preset === 'selected') {
+      return { ...appliedPeriod };
+    }
+
+    return buildPeriod(
+      preset,
+      $('adminExportFromDate')?.value,
+      $('adminExportToDate')?.value
+    );
   }
 
   // =====================================================
@@ -450,9 +453,7 @@
 
   function clearMetrics() {
     Object.values(METRIC_IDS).forEach(
-      function (id) {
-        setText(id, '—');
-      }
+      id => setText(id, '—')
     );
 
     [
@@ -460,18 +461,13 @@
       'adminPipelineShortlisted',
       'adminPipelineInterview',
       'adminPipelineRejected'
-    ].forEach(function (id) {
-      setText(id, '—');
-    });
+    ].forEach(id => setText(id, '—'));
   }
 
   function renderMetrics(metrics) {
     Object.entries(METRIC_IDS).forEach(
-      function ([key, id]) {
-        setText(
-          id,
-          formatNumber(metrics[key])
-        );
+      ([key, id]) => {
+        setText(id, formatNumber(metrics[key]));
       }
     );
 
@@ -500,12 +496,7 @@
     periodOptions,
     initial = false
   ) {
-    if (
-      loadingDashboard ||
-      !token
-    ) {
-      return;
-    }
+    if (loadingDashboard || !token) return;
 
     loadingDashboard = true;
 
@@ -515,9 +506,7 @@
     }
 
     if (initial) {
-      showMessage(
-        'Loading dashboard metrics...'
-      );
+      showMessage('Loading dashboard metrics...');
     }
 
     try {
@@ -530,10 +519,7 @@
         }
       );
 
-      if (
-        !response ||
-        response.success !== true
-      ) {
+      if (!response || response.success !== true) {
         if (isInvalidSession(response)) {
           denyAccess(
             'Your session has expired.',
@@ -549,24 +535,16 @@
         );
       }
 
-      const dashboardData =
-        extractDashboard(response);
+      const data = extractDashboard(response);
 
-      if (
-        !dashboardData ||
-        !dashboardData.metrics ||
-        typeof dashboardData.metrics !== 'object'
-      ) {
+      if (!data || !data.metrics) {
         throw new Error(
           'Dashboard metrics response is incomplete.'
         );
       }
 
-      renderMetrics(
-        dashboardData.metrics
-      );
+      renderMetrics(data.metrics);
 
-      // Update only after a successful response.
       appliedPeriod = {
         period: periodOptions.period,
         startDate: periodOptions.startDate || '',
@@ -585,7 +563,7 @@
 
     } catch (error) {
       console.error(
-        '[UCPP ADMIN] Dashboard metrics error:',
+        '[UCPP ADMIN] Dashboard error:',
         error
       );
 
@@ -604,108 +582,82 @@
 
       if (filterButton) {
         filterButton.disabled = false;
-        filterButton.textContent =
-          'Apply Filter';
+        filterButton.textContent = 'Apply Filter';
       }
     }
   }
 
   // =====================================================
-  // CSV REPORT DOWNLOAD
+  // CSV DOWNLOAD
   // =====================================================
 
   function configureExportForm() {
-    const formatSelect =
-      $('adminExportFormat');
+    const segmentSelect = $('adminExportSegment');
+    const formatSelect = $('adminExportFormat');
 
-    const segmentSelect =
-      $('adminExportSegment');
+    if (segmentSelect) {
+      Array.from(segmentSelect.options).forEach(
+        option => {
+          if (
+            !AVAILABLE_REPORTS.includes(option.value)
+          ) {
+            option.disabled = true;
 
-    const downloadButton =
-      $('adminDownloadReport');
+            if (
+              !option.textContent.includes(
+                'Coming Soon'
+              )
+            ) {
+              option.textContent +=
+                ' — Coming Soon';
+            }
+          }
+        }
+      );
+
+      segmentSelect.value = 'candidates';
+    }
 
     if (formatSelect) {
-      const excelOption =
+      const xlsxOption =
         formatSelect.querySelector(
           'option[value="xlsx"]'
         );
 
-      if (excelOption) {
-        excelOption.disabled = true;
-        excelOption.textContent =
-          'Excel (.xlsx) — Coming Soon';
+      if (xlsxOption) {
+        xlsxOption.disabled = true;
+        xlsxOption.textContent =
+          'Excel (.xlsx) — Backend Pending';
       }
 
       formatSelect.value = 'csv';
     }
 
-    if (segmentSelect) {
-      Array.from(
-        segmentSelect.options
-      ).forEach(function (option) {
-        if (
-          !AVAILABLE_REPORTS.includes(
-            option.value
-          )
-        ) {
-          option.disabled = true;
-
-          if (
-            !option.textContent.includes(
-              'Coming Soon'
-            )
-          ) {
-            option.textContent +=
-              ' — Coming Soon';
-          }
-        }
-      });
-
-      segmentSelect.value =
-        'candidates';
-    }
-
-    if (downloadButton) {
-      downloadButton.disabled = true;
-      downloadButton.removeAttribute(
-        'title'
-      );
-    }
-
-    setExportMessage(
-      'CSV reports will be available after administrator verification.'
-    );
+    disableExport();
+    updateExportDateFields();
   }
 
   function enableExport() {
-    const button = $('adminDownloadReport');
-
     if (
-      button &&
+      exportButton &&
       token &&
-      API &&
-      typeof API.exportData === 'function'
+      typeof API?.exportData === 'function'
     ) {
-      button.disabled = false;
+      exportButton.disabled = false;
 
       setExportMessage(
-        'Select a report and click Download Report.'
+        'Select a report, duration and CSV format.'
       );
     }
   }
 
   function disableExport() {
-    const button = $('adminDownloadReport');
-
-    if (button) {
-      button.disabled = true;
+    if (exportButton) {
+      exportButton.disabled = true;
     }
   }
 
-  function downloadCsv(
-    filename,
-    content
-  ) {
+  function downloadCsv(filename, content) {
     const blob = new Blob(
       [content],
       {
@@ -713,15 +665,12 @@
       }
     );
 
-    const url =
-      URL.createObjectURL(blob);
+    const url = URL.createObjectURL(blob);
 
-    const link =
-      document.createElement('a');
+    const link = document.createElement('a');
 
     link.href = url;
 
-    // Never trust server filename as a path.
     link.download = String(
       filename || 'UCPP_Report.csv'
     )
@@ -732,11 +681,10 @@
     link.style.display = 'none';
 
     document.body.appendChild(link);
-
     link.click();
     link.remove();
 
-    window.setTimeout(function () {
+    window.setTimeout(() => {
       URL.revokeObjectURL(url);
     }, 1000);
   }
@@ -757,7 +705,7 @@
       typeof API.exportData !== 'function'
     ) {
       setExportMessage(
-        'Export API unavailable. Refresh the page.'
+        'Export API unavailable. Please refresh.'
       );
       return;
     }
@@ -770,14 +718,7 @@
       $('adminExportFormat')?.value || 'csv'
     ).trim().toLowerCase();
 
-    const exportPeriod = String(
-      $('adminExportPeriod')?.value ||
-      'selected'
-    );
-
-    if (
-      !AVAILABLE_REPORTS.includes(segment)
-    ) {
+    if (!AVAILABLE_REPORTS.includes(segment)) {
       setExportMessage(
         'Please select an available report.'
       );
@@ -786,28 +727,25 @@
 
     if (format !== 'csv') {
       setExportMessage(
-        'Only CSV export is currently supported.'
+        'Excel export is not enabled yet. Select CSV.'
       );
       return;
     }
 
-    const periodOptions =
-      exportPeriod === 'all'
-        ? {
-            period: 'all',
-            startDate: '',
-            endDate: ''
-          }
-        : { ...appliedPeriod };
+    let periodOptions;
 
-    const button =
-      $('adminDownloadReport');
+    try {
+      periodOptions = getExportPeriod();
+    } catch (error) {
+      setExportMessage(error.message);
+      return;
+    }
 
     exportingReport = true;
 
-    if (button) {
-      button.disabled = true;
-      button.textContent =
+    if (exportButton) {
+      exportButton.disabled = true;
+      exportButton.textContent =
         'Preparing Report...';
     }
 
@@ -816,32 +754,23 @@
     );
 
     try {
-      const response =
-        await API.exportData(
-          token,
-          {
-            segment,
-            format: 'csv',
-            period: periodOptions.period,
-            startDate:
-              periodOptions.startDate || '',
-            endDate:
-              periodOptions.endDate || ''
-          }
-        );
+      const response = await API.exportData(
+        token,
+        {
+          segment,
+          format,
+          period: periodOptions.period,
+          startDate: periodOptions.startDate || '',
+          endDate: periodOptions.endDate || ''
+        }
+      );
 
-      if (
-        !response ||
-        response.success !== true
-      ) {
+      if (!response || response.success !== true) {
         if (isInvalidSession(response)) {
-          disableExport();
-
           denyAccess(
             'Your session has expired.',
             true
           );
-
           return;
         }
 
@@ -853,12 +782,9 @@
       }
 
       if (
-        typeof response.content !==
-          'string' ||
-        typeof response.filename !==
-          'string' ||
-        !response.filename
-          .toLowerCase()
+        typeof response.content !== 'string' ||
+        typeof response.filename !== 'string' ||
+        !response.filename.toLowerCase()
           .endsWith('.csv')
       ) {
         throw new Error(
@@ -874,12 +800,13 @@
       setExportMessage(
         'Report download started. ' +
         formatNumber(response.rowCount) +
-        ' records exported.'
+        ' records exported. Duration: ' +
+        periodOptions.label
       );
 
     } catch (error) {
       console.error(
-        '[UCPP ADMIN] Export error:',
+        '[UCPP ADMIN] Report export error:',
         error
       );
 
@@ -891,19 +818,18 @@
     } finally {
       exportingReport = false;
 
-      if (button) {
-        button.textContent =
+      if (exportButton) {
+        exportButton.textContent =
           'Download Report';
 
-        button.disabled =
-          !token ||
-          loggingOut;
+        exportButton.disabled =
+          !token || loggingOut;
       }
     }
   }
 
   // =====================================================
-  // ADMIN AUTHORIZATION
+  // AUTHORIZATION
   // =====================================================
 
   async function verifyAccess() {
@@ -918,10 +844,8 @@
     if (
       !CONFIG ||
       !API ||
-      typeof API.validateSession !==
-        'function' ||
-      typeof API.getDashboard !==
-        'function'
+      typeof API.validateSession !== 'function' ||
+      typeof API.getDashboard !== 'function'
     ) {
       showMessage(
         'Admin configuration or API unavailable.'
@@ -929,30 +853,19 @@
       return;
     }
 
-    const savedToken =
-      readSession();
+    const savedToken = readSession();
 
     if (!savedToken) {
-      denyAccess(
-        'Please sign in.',
-        true
-      );
+      denyAccess('Please sign in.', true);
       return;
     }
 
     try {
       const validation =
-        await API.validateSession(
-          savedToken
-        );
+        await API.validateSession(savedToken);
 
-      if (
-        !validation ||
-        validation.success !== true
-      ) {
-        if (
-          isInvalidSession(validation)
-        ) {
+      if (!validation || validation.success !== true) {
+        if (isInvalidSession(validation)) {
           denyAccess(
             'Your session has expired.',
             true
@@ -963,12 +876,10 @@
             'Unable to verify your session.'
           );
         }
-
         return;
       }
 
-      const verifiedAdmin =
-        extractAdmin(validation);
+      const verifiedAdmin = extractAdmin(validation);
 
       if (!verifiedAdmin) {
         showMessage(
@@ -988,10 +899,7 @@
         true
       );
 
-      if (
-        dashboard &&
-        !dashboard.hidden
-      ) {
+      if (dashboard && !dashboard.hidden) {
         enableExport();
 
         document.dispatchEvent(
@@ -1000,12 +908,8 @@
             {
               detail: {
                 admin: {
-                  name: String(
-                    admin.name || ''
-                  ),
-                  role: String(
-                    admin.role || ''
-                  )
+                  name: String(admin.name || ''),
+                  role: String(admin.role || '')
                 }
               }
             }
@@ -1034,24 +938,17 @@
 
     loggingOut = true;
 
-    const activeToken =
-      token || readSession();
+    const activeToken = token || readSession();
 
     disableExport();
     hideDashboard();
-
     showMessage('Signing out...');
 
     clearSession();
 
-    if (
-      activeToken &&
-      API
-    ) {
+    if (activeToken && API) {
       try {
-        await API.logout(
-          activeToken
-        );
+        await API.logout(activeToken);
       } catch (_) {}
     }
 
@@ -1059,7 +956,7 @@
   }
 
   // =====================================================
-  // EVENTS
+  // EVENT HANDLERS
   // =====================================================
 
   function initializeEvents() {
@@ -1068,30 +965,23 @@
       updateDateFields
     );
 
+    $('adminExportPeriod')?.addEventListener(
+      'change',
+      updateExportDateFields
+    );
+
     filterForm?.addEventListener(
       'submit',
-      async function (event) {
+      async event => {
         event.preventDefault();
 
-        if (
-          !token ||
-          loadingDashboard
-        ) {
-          return;
-        }
+        if (!token || loadingDashboard) return;
 
         try {
-          const periodOptions =
-            getPeriodPayload();
-
-          await loadDashboard(
-            periodOptions
-          );
-
+          const options = getDashboardPeriod();
+          await loadDashboard(options);
         } catch (error) {
-          showAlert(
-            error.message
-          );
+          showAlert(error.message);
         }
       }
     );
@@ -1101,12 +991,10 @@
       handleReportExport
     );
 
-    if (logoutButton) {
-      logoutButton.addEventListener(
-        'click',
-        logout
-      );
-    }
+    logoutButton?.addEventListener(
+      'click',
+      logout
+    );
 
     configureExportForm();
   }
@@ -1124,9 +1012,7 @@
     verifyAccess();
   }
 
-  if (
-    document.readyState === 'loading'
-  ) {
+  if (document.readyState === 'loading') {
     document.addEventListener(
       'DOMContentLoaded',
       initialize,
@@ -1136,16 +1022,12 @@
     initialize();
   }
 
-  window.UCPP_ADMIN_DASHBOARD =
-    Object.freeze({
-      validateAccess: verifyAccess,
-      logout: logout,
-      isAuthenticated: function () {
-        return Boolean(
-          token && admin
-        );
-      }
-    });
+  window.UCPP_ADMIN_DASHBOARD = Object.freeze({
+    validateAccess: verifyAccess,
+    logout: logout,
+    isAuthenticated: function () {
+      return Boolean(token && admin);
+    }
+  });
 
 })(window, document);
-
