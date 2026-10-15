@@ -3,20 +3,26 @@
  * =========================================================
  * UCPP V2 — Admin Dashboard Controller
  * File: js/admin/dashboard.js
- * Version: 8.0
+ * Version: 9.0 — Fast Dashboard Loading
  *
  * FEATURES:
- * - Secure admin session validation
+ * - Single authenticated initial dashboard request
+ * - No redundant frontend session validation
+ * - Backend-verified admin authorization
  * - Live dashboard metrics
  * - Recruitment pipeline
- * - Dashboard reporting-period filters
- * - Independent export duration filters
- * - Custom date range selection
+ * - Reporting period filters
+ * - Independent export date filters
  * - Secure CSV downloads
  * - Genuine Excel (.xlsx) downloads
  * - Session-aware logout
+ * - Dashboard loading skeleton state
  *
- * Existing Candidate/Employer modules unaffected.
+ * SECURITY:
+ * - Browser session is never sufficient for authorization
+ * - Protected dashboard endpoint validates session
+ * - Invalid sessions are rejected
+ * - Existing Candidate/Employer modules unaffected
  * =========================================================
  */
 
@@ -25,20 +31,6 @@
 
   const CONFIG = window.UCPP_ADMIN_CONFIG;
   const API = window.UCPP_ADMIN_API;
-
-  let token = null;
-  let admin = null;
-  let loggingOut = false;
-  let loadingDashboard = false;
-  let exportingReport = false;
-  let authorized = false;
-
-  let appliedPeriod = {
-    period: 'all',
-    startDate: '',
-    endDate: '',
-    label: 'All Time'
-  };
 
   const $ = id => document.getElementById(id);
 
@@ -49,6 +41,21 @@
   const filterForm = $('adminDashboardFilterForm');
   const exportForm = $('adminExportForm');
   const exportButton = $('adminDownloadReport');
+
+  let token = null;
+  let admin = null;
+  let authorized = false;
+  let loggingOut = false;
+  let loadingDashboard = false;
+  let exportingReport = false;
+  let accessRequest = null;
+
+  let appliedPeriod = {
+    period: 'all',
+    startDate: '',
+    endDate: '',
+    label: 'All Time'
+  };
 
   const AVAILABLE_REPORTS = Object.freeze([
     'candidates',
@@ -78,7 +85,7 @@
   });
 
   // =====================================================
-  // COMMON UI HELPERS
+  // UI HELPERS
   // =====================================================
 
   function setText(id, value) {
@@ -137,7 +144,7 @@
   function showAlert(message, type = 'error') {
     if (!alertBox) return;
 
-    alertBox.textContent = message;
+    alertBox.textContent = message || '';
     alertBox.hidden = !message;
     alertBox.className = 'profile-alert ' + type;
   }
@@ -173,16 +180,36 @@
       typeof API?.exportData !== 'function';
   }
 
+  function setMetricsLoading(loading) {
+    if (!dashboard) return;
+
+    dashboard.classList.toggle(
+      'admin-metrics-loading',
+      loading
+    );
+
+    Object.values(METRIC_IDS).forEach(id => {
+      const element = $(id);
+
+      if (element) {
+        element.setAttribute(
+          'aria-busy',
+          String(loading)
+        );
+      }
+    });
+  }
+
   // =====================================================
   // SESSION MANAGEMENT
   // =====================================================
 
   function clearSession() {
     try {
-      if (CONFIG?.SESSION?.STORAGE_KEY) {
-        sessionStorage.removeItem(
-          CONFIG.SESSION.STORAGE_KEY
-        );
+      const key = CONFIG?.SESSION?.STORAGE_KEY;
+
+      if (key) {
+        sessionStorage.removeItem(key);
       }
     } catch (_) {}
 
@@ -206,7 +233,7 @@
       if (
         !data ||
         typeof data.token !== 'string' ||
-        !data.token.trim() ||
+        !/^[a-f0-9]{64}$/.test(data.token) ||
         !Number.isFinite(data.expiresAt) ||
         data.expiresAt <= Date.now()
       ) {
@@ -214,9 +241,10 @@
         return null;
       }
 
-      return data.token.trim();
+      return data.token;
 
     } catch (_) {
+      clearSession();
       return null;
     }
   }
@@ -244,7 +272,8 @@
       'ADMIN_SESSION_INVALID',
       'ADMIN_ACCESS_DENIED',
       'ADMIN_SESSION_REQUIRED',
-      'ADMIN_SESSION_EXPIRED'
+      'ADMIN_SESSION_EXPIRED',
+      'INVALID_ADMIN_SESSION'
     ].includes(String(response?.code || ''));
   }
 
@@ -428,7 +457,7 @@
   }
 
   // =====================================================
-  // INDEPENDENT EXPORT DATE FILTERS
+  // INDEPENDENT EXPORT FILTERS
   // =====================================================
 
   function updateExportDateFields() {
@@ -458,15 +487,11 @@
       toInput.disabled = !custom;
     }
 
-    if (custom) {
-      setExportMessage(
-        'Select From Date and To Date, then download your report.'
-      );
-    } else {
-      setExportMessage(
-        'Select a report, duration and format to download.'
-      );
-    }
+    setExportMessage(
+      custom
+        ? 'Select From Date and To Date, then download your report.'
+        : 'Select a report, duration and format to download.'
+    );
   }
 
   function getExportPeriod() {
@@ -486,7 +511,7 @@
   }
 
   // =====================================================
-  // DASHBOARD METRICS
+  // METRICS
   // =====================================================
 
   function clearMetrics() {
@@ -533,13 +558,24 @@
     );
   }
 
+  // =====================================================
+  // AUTHENTICATED DASHBOARD LOADING
+  // =====================================================
+
   async function loadDashboard(
     periodOptions,
     initial = false
   ) {
-    if (loadingDashboard || !token) return false;
+    if (
+      loadingDashboard ||
+      !token ||
+      loggingOut
+    ) {
+      return false;
+    }
 
     loadingDashboard = true;
+    setMetricsLoading(true);
 
     if (filterButton) {
       filterButton.disabled = true;
@@ -576,13 +612,40 @@
         );
       }
 
-      const data = extractDashboard(response);
+      const verifiedAdmin = extractAdmin(
+        response
+      );
 
-      if (!data || !data.metrics) {
+      const data = extractDashboard(
+        response
+      );
+
+      if (
+        !verifiedAdmin ||
+        !verifiedAdmin.adminId ||
+        !verifiedAdmin.email ||
+        !verifiedAdmin.role
+      ) {
+        throw new Error(
+          'Administrator identity response is incomplete.'
+        );
+      }
+
+      if (
+        !data ||
+        !data.metrics
+      ) {
         throw new Error(
           'Dashboard metrics response is incomplete.'
         );
       }
+
+      /*
+       * Authorization is established only after
+       * a successful protected backend response.
+       */
+      admin = verifiedAdmin;
+      authorized = true;
 
       renderMetrics(data.metrics);
 
@@ -601,6 +664,7 @@
       removeMessage();
       showDashboard();
       showAlert('');
+      updateExportButton();
 
       return true;
 
@@ -610,9 +674,13 @@
         error
       );
 
-      if (initial && authorized) {
+      if (authorized) {
         removeMessage();
         showDashboard();
+      } else {
+        showMessage(
+          'Unable to load dashboard. Please refresh.'
+        );
       }
 
       showAlert(
@@ -624,11 +692,14 @@
 
     } finally {
       loadingDashboard = false;
+      setMetricsLoading(false);
 
       if (filterButton) {
         filterButton.disabled = !authorized;
         filterButton.textContent = 'Apply Filter';
       }
+
+      updateExportButton();
     }
   }
 
@@ -674,7 +745,6 @@
         }
       );
 
-      // Enable genuine Excel download.
       const excelOption = formatSelect.querySelector(
         'option[value="xlsx"]'
       );
@@ -684,7 +754,6 @@
         excelOption.textContent = 'Excel (.xlsx)';
       }
 
-      // Default to Excel.
       formatSelect.value = 'xlsx';
     }
 
@@ -793,8 +862,6 @@
       bytes[i] = binary.charCodeAt(i);
     }
 
-    // XLSX is a ZIP-based format.
-    // Check its standard ZIP signature.
     if (
       bytes.length < 4 ||
       bytes[0] !== 0x50 ||
@@ -997,29 +1064,24 @@
   }
 
   // =====================================================
-  // AUTHORIZATION
+  // INITIAL AUTHORIZATION
   // =====================================================
 
   async function verifyAccess() {
-    authorized = false;
-    hideDashboard();
-    updateExportButton();
-    clearMetrics();
-
-    showMessage(
-      'Verifying administrator session...'
-    );
+    if (accessRequest) {
+      return accessRequest;
+    }
 
     if (
       !CONFIG ||
       !API ||
-      typeof API.validateSession !== 'function' ||
       typeof API.getDashboard !== 'function'
     ) {
+      hideDashboard();
       showMessage(
         'Admin configuration or API unavailable.'
       );
-      return;
+      return false;
     }
 
     const savedToken = readSession();
@@ -1029,97 +1091,63 @@
         'Please sign in.',
         true
       );
-      return;
+      return false;
     }
 
+    token = savedToken;
+
+    /*
+     * Do not trust sessionStorage as authorization.
+     * Authorization is confirmed by getDashboard().
+     */
+    if (!authorized) {
+      hideDashboard();
+      clearMetrics();
+    }
+
+    const operation = loadDashboard(
+      {
+        period: 'all',
+        startDate: '',
+        endDate: '',
+        label: 'All Time'
+      },
+      true
+    );
+
+    accessRequest = operation;
+
     try {
-      const validation =
-        await API.validateSession(savedToken);
+      const loaded = await operation;
 
       if (
-        !validation ||
-        validation.success !== true
+        loaded &&
+        authorized &&
+        admin
       ) {
-        if (isInvalidSession(validation)) {
-          denyAccess(
-            'Your session has expired.',
-            true
-          );
-        } else {
-          showMessage(
-            validation?.message ||
-            'Unable to verify your session.'
-          );
-        }
-
-        return;
-      }
-
-      const verifiedAdmin = extractAdmin(
-        validation
-      );
-
-      if (!verifiedAdmin) {
-        showMessage(
-          'Admin identity response is incomplete.'
-        );
-        return;
-      }
-
-      token = savedToken;
-      admin = verifiedAdmin;
-      authorized = true;
-
-      const loaded = await loadDashboard(
-        {
-          period: 'all',
-          startDate: '',
-          endDate: '',
-          label: 'All Time'
-        },
-        true
-      );
-
-      if (!authorized) return;
-
-      if (!loaded) {
-        // Session is valid, but metrics could not load.
-        // Keep the authorized dashboard available.
-        removeMessage();
-        showDashboard();
-      }
-
-      updateExportButton();
-
-      document.dispatchEvent(
-        new CustomEvent(
-          'ucpp:admin-authorized',
-          {
-            detail: {
-              admin: {
-                name: String(
-                  admin.name || ''
-                ),
-                role: String(
-                  admin.role || ''
-                )
+        document.dispatchEvent(
+          new CustomEvent(
+            'ucpp:admin-authorized',
+            {
+              detail: {
+                admin: {
+                  name: String(
+                    admin.name || ''
+                  ),
+                  role: String(
+                    admin.role || ''
+                  )
+                }
               }
             }
-          }
-        )
-      );
+          )
+        );
+      }
 
-    } catch (error) {
-      console.error(
-        '[UCPP ADMIN] Authorization error:',
-        error
-      );
+      return loaded;
 
-      authorized = false;
-      updateExportButton();
-      showMessage(
-        'Unable to connect to the admin server. Please refresh.'
-      );
+    } finally {
+      accessRequest = null;
     }
   }
 
@@ -1141,7 +1169,10 @@
 
     clearSession();
 
-    if (activeToken && API) {
+    if (
+      activeToken &&
+      typeof API?.logout === 'function'
+    ) {
       try {
         await API.logout(activeToken);
       } catch (_) {}
@@ -1228,7 +1259,7 @@
 
   window.UCPP_ADMIN_DASHBOARD = Object.freeze({
     validateAccess: verifyAccess,
-    logout: logout,
+    logout,
     isAuthenticated: function () {
       return Boolean(
         authorized &&
