@@ -1,8 +1,8 @@
+
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
-
   <meta charset="UTF-8">
 
   <meta
@@ -10,117 +10,192 @@
     content="width=device-width, initial-scale=1.0"
   >
 
-  <title>
-    About Us | Udayan Care Placement Portal
-  </title>
+  <title>About Us | Udayan Care Placement Portal</title>
 
   <meta
     name="description"
-    content="Learn about Udayan Care Placement Portal and how it connects candidates with meaningful employment opportunities."
+    content="Learn about Udayan Care Placement Portal, an initiative connecting candidates with employment opportunities and helping employers discover suitable talent."
   >
-
 
   <!-- Common CSS -->
+  <link rel="stylesheet" href="css/common/variables.css">
+  <link rel="stylesheet" href="css/common/reset.css">
+  <link rel="stylesheet" href="css/common/base.css">
+  <link rel="stylesheet" href="css/common/layout.css">
+  <link rel="stylesheet" href="css/common/components.css">
+  <link rel="stylesheet" href="css/common/utilities.css">
+  <link rel="stylesheet" href="css/common/shell.css">
 
-  <link
-    rel="stylesheet"
-    href="css/common/variables.css"
-  >
-
-  <link
-    rel="stylesheet"
-    href="css/common/reset.css"
-  >
-
-  <link
-    rel="stylesheet"
-    href="css/common/base.css"
-  >
-
-  <link
-    rel="stylesheet"
-    href="css/common/layout.css"
-  >
-
-  <link
-    rel="stylesheet"
-    href="css/common/components.css"
-  >
-
-  <link
-    rel="stylesheet"
-    href="css/common/utilities.css"
-  >
-
-  <link
-    rel="stylesheet"
-    href="css/common/shell.css"
-  >
-
-
-  <!-- Page CSS -->
-
-  <link
-    rel="stylesheet"
-    href="css/public/about.css"
-  >
+  <!-- About Page CSS -->
+  <link rel="stylesheet" href="css/public/about.css">
 
 </head>
 
-
 <body>
 
-
-  <!-- HEADER -->
+  <!-- ========================================
+       GLOBAL HEADER
+       ======================================== -->
 
   <div id="siteHeader"></div>
-
 
 
   <main class="about-page">
 
 
-    <!-- HERO -->
+    <!-- ========================================
+         ABOUT HERO
+         ======================================== -->
 
     <section class="about-hero">
 
       <div class="container">
 
-        <div class="about-hero__content">
+        <div class="about-hero__grid">
 
-          <span class="about-eyebrow">
-            About the Portal
-          </span>
 
-          <h1>
-            Connecting Talent with
-            Meaningful Opportunities
-          </h1>
+          <!-- LEFT: ABOUT PLACEMENT PORTAL -->
 
-          <p>
-            Udayan Care Placement Portal is designed to
-            connect candidates with employment opportunities
-            while enabling employers to discover suitable
-            talent through a simple and accessible platform.
-          </p>
+          <div class="about-hero__content">
 
-          <div class="about-hero__actions">
+            <span class="about-eyebrow">
+              About the Portal
+            </span>
 
-            <a
-              href="jobs.html"
-              class="btn btn-primary"
-            >
-              Explore Jobs
-            </a>
+            <h1>
+              Connecting Talent with
+              <span>Meaningful Opportunities</span>
+            </h1>
 
-            <a
-              href="candidate/register.html"
-              class="btn btn-secondary"
-            >
-              Candidate Registration
-            </a>
+            <p>
+              Udayan Care Placement Portal connects candidates
+              with employment opportunities and enables
+              employers to discover suitable talent through
+              a simple and accessible digital platform.
+            </p>
+
+            <div class="about-hero__actions">
+
+              <a
+                href="jobs.html"
+                class="btn btn-primary"
+              >
+                Explore Jobs
+              </a>
+
+              <a
+                href="candidate/register.html"
+                class="btn btn-secondary"
+              >
+                Candidate Registration
+              </a>
+
+            </div>
 
           </div>
+
+
+          <!-- RIGHT: ABOUT UDAYAN CARE -->
+
+          <aside
+            class="about-hero__organisation"
+            aria-label="About Udayan Care"
+          >
+
+            <div class="about-hero__organisation-top">
+
+              <span class="about-hero__organisation-label">
+                About Udayan Care
+              </span>
+
+              <h2>
+                Making Young Lives Shine!
+              </h2>
+
+              <p>
+                Established in 1994, Udayan Care is a
+                non-profit organisation working towards
+                the education, empowerment and development
+                of children, young adults and women.
+              </p>
+
+            </div>
+
+
+            <!-- ORGANISATION HIGHLIGHTS -->
+
+            <div class="about-hero__highlights">
+
+
+              <!-- EDUCATION -->
+
+              <div class="about-hero__highlight">
+
+                <div
+                  class="about-hero__highlight-icon"
+                  aria-hidden="true"
+                >
+                  01
+                </div>
+
+                <div>
+
+                  <h3>
+                    Education &amp; Empowerment
+                  </h3>
+
+                  <p>
+                    Supporting education, mentoring and
+                    personal development.
+                  </p>
+
+                </div>
+
+              </div>
+
+
+              <!-- EMPLOYABILITY -->
+
+              <div class="about-hero__highlight">
+
+                <div
+                  class="about-hero__highlight-icon"
+                  aria-hidden="true"
+                >
+                  02
+                </div>
+
+                <div>
+
+                  <h3>
+                    Skills &amp; Employability
+                  </h3>
+
+                  <p>
+                    Supporting young people in preparing
+                    for employment opportunities.
+                  </p>
+
+                </div>
+
+              </div>
+
+            </div>
+
+
+            <!-- OFFICIAL WEBSITE -->
+
+            <a
+              href="https://udayancare.org/"
+              class="about-hero__official-link"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Visit Udayan Care Official Website
+              <span aria-hidden="true">↗</span>
+            </a>
+
+          </aside>
 
         </div>
 
@@ -130,7 +205,9 @@
 
 
 
-    <!-- ABOUT UDAYAN CARE -->
+    <!-- ========================================
+         ABOUT UDAYAN CARE & PORTAL
+         ======================================== -->
 
     <section class="section">
 
@@ -178,7 +255,9 @@
 
 
 
-    <!-- PURPOSE -->
+    <!-- ========================================
+         OUR PURPOSE
+         ======================================== -->
 
     <section class="section about-purpose">
 
@@ -206,6 +285,8 @@
         <div class="purpose-grid">
 
 
+          <!-- PURPOSE 01 -->
+
           <article class="purpose-card">
 
             <div class="purpose-card__number">
@@ -225,6 +306,8 @@
           </article>
 
 
+          <!-- PURPOSE 02 -->
+
           <article class="purpose-card">
 
             <div class="purpose-card__number">
@@ -243,6 +326,8 @@
 
           </article>
 
+
+          <!-- PURPOSE 03 -->
 
           <article class="purpose-card">
 
@@ -271,7 +356,9 @@
 
 
 
-    <!-- HOW PORTAL HELPS -->
+    <!-- ========================================
+         HOW PORTAL HELPS
+         ======================================== -->
 
     <section class="section">
 
@@ -293,7 +380,7 @@
         <div class="audience-grid">
 
 
-          <!-- CANDIDATE -->
+          <!-- CANDIDATE CARD -->
 
           <article class="audience-card">
 
@@ -310,7 +397,6 @@
               opportunities and manage your job
               applications from one place.
             </p>
-
 
             <ul>
 
@@ -336,7 +422,6 @@
 
             </ul>
 
-
             <a
               href="candidate/register.html"
               class="btn btn-primary"
@@ -347,8 +432,7 @@
           </article>
 
 
-
-          <!-- EMPLOYER -->
+          <!-- EMPLOYER CARD -->
 
           <article class="audience-card">
 
@@ -365,7 +449,6 @@
               opportunities and manage candidate
               applications through a structured process.
             </p>
-
 
             <ul>
 
@@ -391,7 +474,6 @@
 
             </ul>
 
-
             <a
               href="employer/register.html"
               class="btn btn-primary"
@@ -401,7 +483,6 @@
 
           </article>
 
-
         </div>
 
       </div>
@@ -410,7 +491,9 @@
 
 
 
-    <!-- PROCESS -->
+    <!-- ========================================
+         SIMPLE PROCESS
+         ======================================== -->
 
     <section class="section about-process">
 
@@ -432,11 +515,11 @@
         <div class="process-grid">
 
 
+          <!-- STEP 1 -->
+
           <article class="process-item">
 
-            <span>
-              1
-            </span>
+            <span>1</span>
 
             <h3>
               Register
@@ -449,11 +532,11 @@
           </article>
 
 
+          <!-- STEP 2 -->
+
           <article class="process-item">
 
-            <span>
-              2
-            </span>
+            <span>2</span>
 
             <h3>
               Connect
@@ -467,11 +550,11 @@
           </article>
 
 
+          <!-- STEP 3 -->
+
           <article class="process-item">
 
-            <span>
-              3
-            </span>
+            <span>3</span>
 
             <h3>
               Apply
@@ -485,11 +568,11 @@
           </article>
 
 
+          <!-- STEP 4 -->
+
           <article class="process-item">
 
-            <span>
-              4
-            </span>
+            <span>4</span>
 
             <h3>
               Progress
@@ -502,7 +585,6 @@
 
           </article>
 
-
         </div>
 
       </div>
@@ -511,7 +593,9 @@
 
 
 
-    <!-- FREE PLATFORM -->
+    <!-- ========================================
+         FREE PLATFORM
+         ======================================== -->
 
     <section class="section">
 
@@ -568,20 +652,27 @@
 
 
 
-  <!-- FOOTER -->
+  <!-- ========================================
+       GLOBAL FOOTER
+       ======================================== -->
 
   <div id="siteFooter"></div>
 
 
 
-  <!-- CORE -->
+  <!-- ========================================
+       CORE JAVASCRIPT
+       ======================================== -->
 
   <script src="js/core/config.js"></script>
 
   <script src="js/core/api.js"></script>
 
 
-  <!-- COMMON -->
+
+  <!-- ========================================
+       COMMON JAVASCRIPT
+       ======================================== -->
 
   <script src="js/common/header.js"></script>
 
