@@ -1,3 +1,4 @@
+
 'use strict';
 /* UCPP V2 - Core API Client */
 (function(){
@@ -7,6 +8,7 @@ return;
 }
 const CONFIG=window.UCPP_CONFIG;
 const activeRequests=new Map();
+
 function buildURL(action,params={}){
 const url=new URL(CONFIG.API_URL);
 url.searchParams.set('action',action);
@@ -16,6 +18,7 @@ url.searchParams.set(key,String(value));
 });
 return url.toString();
 }
+
 async function get(action,params={}){
 const requestURL=buildURL(action,params);
 if(activeRequests.has(requestURL))return activeRequests.get(requestURL);
@@ -24,6 +27,7 @@ activeRequests.set(requestURL,request);
 try{return await request;}
 finally{activeRequests.delete(requestURL);}
 }
+
 async function performGetRequest(requestURL){
 const controller=new AbortController();
 const timeout=setTimeout(()=>controller.abort(),CONFIG.API_TIMEOUT||30000);
@@ -40,11 +44,13 @@ if(error.name==='AbortError')throw new Error('Request timed out. Please try agai
 throw error;
 }finally{clearTimeout(timeout);}
 }
+
 async function post(action,data={}){
 const cleanAction=String(action||'').trim();
 if(!cleanAction)throw new Error('API action is required.');
 return performPostRequest({action:cleanAction,...data});
 }
+
 async function performPostRequest(payload){
 const controller=new AbortController();
 const timeout=setTimeout(()=>controller.abort(),CONFIG.API_TIMEOUT||30000);
@@ -64,17 +70,21 @@ if(error.name==='AbortError')throw new Error('Request timed out. Please try agai
 throw error;
 }finally{clearTimeout(timeout);}
 }
+
 function cleanSessionToken(sessionToken){
 return String(sessionToken||'').trim();
 }
+
 function invalidSessionResponse(){
 return Promise.resolve({
 success:false,code:'INVALID_SESSION',
 message:'Session is not available.',data:null
 });
 }
+
 /* HEALTH */
 function health(){return get('health');}
+
 /* PUBLIC JOBS */
 function getJobs(options={}){
 return get('getPublicJobs',{
@@ -87,11 +97,13 @@ jobType:options.jobType||'',
 workMode:options.workMode||''
 });
 }
+
 function getJob(jobId){
 const id=String(jobId||'').trim();
 if(!id)return Promise.reject(new Error('Job ID is required.'));
 return get('getPublicJob',{id:id});
 }
+
 /* CANDIDATE LOGIN */
 function candidateLogin(email,password){
 const cleanEmail=String(email||'').trim().toLowerCase();
@@ -104,12 +116,14 @@ message:'Email and password are required.',data:null
 }
 return post('candidateLogin',{email:cleanEmail,password:cleanPassword});
 }
+
 /* CANDIDATE SESSION */
 function validateCandidateSession(sessionToken){
 const token=cleanSessionToken(sessionToken);
 if(!token)return invalidSessionResponse();
 return post('validateCandidateSession',{sessionToken:token});
 }
+
 function logoutCandidate(sessionToken){
 const token=cleanSessionToken(sessionToken);
 if(!token){
@@ -120,18 +134,21 @@ message:'Logged out successfully.',data:null
 }
 return post('logoutCandidate',{sessionToken:token});
 }
+
 /* CANDIDATE DASHBOARD */
 function getCandidateDashboard(sessionToken){
 const token=cleanSessionToken(sessionToken);
 if(!token)return invalidSessionResponse();
 return post('getCandidateDashboard',{sessionToken:token});
 }
+
 /* CANDIDATE PROFILE */
 function getCandidateProfile(sessionToken){
 const token=cleanSessionToken(sessionToken);
 if(!token)return invalidSessionResponse();
 return post('getCandidateProfile',{sessionToken:token});
 }
+
 function updateCandidateProfile(sessionToken,profile={}){
 const token=cleanSessionToken(sessionToken);
 if(!token)return invalidSessionResponse();
@@ -143,6 +160,48 @@ message:'Invalid profile data.',data:null
 }
 return post('updateCandidateProfile',{sessionToken:token,profile:profile});
 }
+
+/* CANDIDATE EDUCATION — NEW */
+function saveCandidateEducation(sessionToken,education={}){
+const token=cleanSessionToken(sessionToken);
+if(!token)return invalidSessionResponse();
+
+if(!education||typeof education!=='object'||Array.isArray(education)){
+return Promise.resolve({
+success:false,
+code:'INVALID_EDUCATION',
+message:'Invalid education data.',
+data:null
+});
+}
+
+return post('saveCandidateEducation',{
+sessionToken:token,
+education:education
+});
+}
+
+function deleteCandidateEducation(sessionToken,educationId){
+const token=cleanSessionToken(sessionToken);
+const id=String(educationId||'').trim();
+
+if(!token)return invalidSessionResponse();
+
+if(!id){
+return Promise.resolve({
+success:false,
+code:'INVALID_EDUCATION_ID',
+message:'Education record is required.',
+data:null
+});
+}
+
+return post('deleteCandidateEducation',{
+sessionToken:token,
+educationId:id
+});
+}
+
 /* CANDIDATE EXPERIENCE */
 function saveCandidateExperience(sessionToken,experience={}){
 const token=cleanSessionToken(sessionToken);
@@ -155,6 +214,7 @@ message:'Invalid experience data.',data:null
 }
 return post('saveCandidateExperience',{sessionToken:token,experience:experience});
 }
+
 function deleteCandidateExperience(sessionToken,experienceId){
 const token=cleanSessionToken(sessionToken);
 const id=String(experienceId||'').trim();
@@ -167,6 +227,7 @@ message:'Experience record is required.',data:null
 }
 return post('deleteCandidateExperience',{sessionToken:token,experienceId:id});
 }
+
 /* CANDIDATE CERTIFICATIONS */
 function saveCandidateCertification(sessionToken,certification={}){
 const token=cleanSessionToken(sessionToken);
@@ -179,6 +240,7 @@ message:'Invalid certification data.',data:null
 }
 return post('saveCandidateCertification',{sessionToken:token,certification:certification});
 }
+
 function deleteCandidateCertification(sessionToken,certificationId){
 const token=cleanSessionToken(sessionToken);
 const id=String(certificationId||'').trim();
@@ -191,6 +253,7 @@ message:'Certification record is required.',data:null
 }
 return post('deleteCandidateCertification',{sessionToken:token,certificationId:id});
 }
+
 /* CANDIDATE SOCIAL LINKS */
 function saveCandidateSocialLinks(sessionToken,socialLinks={}){
 const token=cleanSessionToken(sessionToken);
@@ -203,6 +266,7 @@ message:'Invalid social links.',data:null
 }
 return post('saveCandidateSocialLinks',{sessionToken:token,socialLinks:socialLinks});
 }
+
 /* CANDIDATE APPLY JOB */
 function applyCandidateJob(sessionToken,jobId){
 const token=cleanSessionToken(sessionToken);
@@ -216,6 +280,7 @@ message:'Please select a valid job.',data:null
 }
 return post('candidateApplyJob',{sessionToken:token,jobId:id});
 }
+
 /* CANDIDATE MY APPLICATIONS - READ ONLY */
 function getCandidateMyApplications(sessionToken,options={}){
 const token=cleanSessionToken(sessionToken);
@@ -230,6 +295,7 @@ search:String(options.search||'').trim().slice(0,100),
 status:String(options.status||'').trim().slice(0,50)
 });
 }
+
 /* CANDIDATE PASSWORD RESET */
 function requestCandidatePasswordReset(email){
 const cleanEmail=String(email||'').trim().toLowerCase();
@@ -241,6 +307,7 @@ message:'Email address is required.',data:null
 }
 return post('requestCandidatePasswordReset',{email:cleanEmail});
 }
+
 function verifyCandidatePasswordResetOtp(email,otp){
 const cleanEmail=String(email||'').trim().toLowerCase();
 const cleanOtp=String(otp||'').trim();
@@ -254,6 +321,7 @@ return post('verifyCandidatePasswordResetOtp',{
 email:cleanEmail,otp:cleanOtp
 });
 }
+
 function resetCandidatePassword(resetToken,newPassword){
 const cleanToken=String(resetToken||'').trim();
 const password=String(newPassword||'');
@@ -267,6 +335,7 @@ return post('resetCandidatePassword',{
 resetToken:cleanToken,newPassword:password
 });
 }
+
 /* PUBLIC API */
 window.UCPP_API=Object.freeze({
 get,
@@ -280,6 +349,11 @@ logoutCandidate,
 getCandidateDashboard,
 getCandidateProfile,
 updateCandidateProfile,
+
+// Education
+saveCandidateEducation,
+deleteCandidateEducation,
+
 saveCandidateExperience,
 deleteCandidateExperience,
 saveCandidateCertification,
