@@ -1,811 +1,447 @@
+
 'use strict';
 
 /*
- * =========================================================
- * UCPP V2
- * Candidate Registration
- *
- * CURRENT MODE:
- * UI + validation only.
- *
- * NO production Candidate_Master write is performed.
- * =========================================================
+ * UCPP V2 — Candidate Registration
+ * Secure Backend Integration
  */
 
 (function () {
 
-  const form =
-    document.getElementById(
-      'candidateRegisterForm'
-    );
+  const form = document.getElementById('candidateRegisterForm');
+
+  if (!form) return;
+
+  const ids = [
+    'fullName',
+    'mobile',
+    'email',
+    'currentCity',
+    'gender',
+    'dob',
+    'password',
+    'confirmPassword',
+    'consent'
+  ];
+
+  const fields = Object.fromEntries(
+    ids.map(id => [id, document.getElementById(id)])
+  );
+
+  const errors = Object.fromEntries(
+    ids.map(id => [id, document.getElementById(id + 'Error')])
+  );
+
+  const status = document.getElementById('registerStatus');
+
+  const submitButton = form.querySelector(
+    'button[type="submit"],input[type="submit"]'
+  );
+
+  let submitting = false;
+
+  const val = id =>
+    String(fields[id]?.value || '').trim();
 
 
-  if (!form) {
-    return;
-  }
+  /* FIELD ERRORS */
 
+  function clearError(id) {
+    fields[id]?.classList.remove('is-invalid');
 
-  const fields = {
-
-    fullName:
-      document.getElementById('fullName'),
-
-    mobile:
-      document.getElementById('mobile'),
-
-    email:
-      document.getElementById('email'),
-
-    currentCity:
-      document.getElementById('currentCity'),
-
-    gender:
-      document.getElementById('gender'),
-
-    dob:
-      document.getElementById('dob'),
-
-    password:
-      document.getElementById('password'),
-
-    confirmPassword:
-      document.getElementById('confirmPassword'),
-
-    consent:
-      document.getElementById('consent')
-
-  };
-
-
-  const errors = {
-
-    fullName:
-      document.getElementById('fullNameError'),
-
-    mobile:
-      document.getElementById('mobileError'),
-
-    email:
-      document.getElementById('emailError'),
-
-    currentCity:
-      document.getElementById('currentCityError'),
-
-    gender:
-      document.getElementById('genderError'),
-
-    dob:
-      document.getElementById('dobError'),
-
-    password:
-      document.getElementById('passwordError'),
-
-    confirmPassword:
-      document.getElementById('confirmPasswordError'),
-
-    consent:
-      document.getElementById('consentError')
-
-  };
-
-
-  const status =
-    document.getElementById(
-      'registerStatus'
-    );
-
-
-  /*
-   * VALUE
-   */
-
-  function value(field) {
-
-    return String(
-      field?.value || ''
-    ).trim();
-
-  }
-
-
-  /*
-   * ERROR
-   */
-
-  function setError(
-    field,
-    error,
-    message
-  ) {
-
-    field?.classList.add(
-      'is-invalid'
-    );
-
-
-    if (error) {
-
-      error.textContent =
-        message;
-
-      error.hidden =
-        false;
-
+    if (errors[id]) {
+      errors[id].textContent = '';
+      errors[id].hidden = true;
     }
-
   }
 
+  function setError(id, message) {
+    fields[id]?.classList.add('is-invalid');
 
-  function clearError(
-    field,
-    error
-  ) {
-
-    field?.classList.remove(
-      'is-invalid'
-    );
-
-
-    if (error) {
-
-      error.textContent = '';
-
-      error.hidden = true;
-
+    if (errors[id]) {
+      errors[id].textContent = message;
+      errors[id].hidden = false;
     }
-
   }
 
 
-  /*
-   * STATUS
-   */
+  /* STATUS */
 
   function clearStatus() {
+    if (!status) return;
 
     status.hidden = true;
-
     status.textContent = '';
-
-    status.className =
-      'register-status';
-
+    status.className = 'register-status';
   }
 
-
-  function showStatus(
-    message,
-    type
-  ) {
+  function showStatus(message, type) {
+    if (!status) return;
 
     status.hidden = false;
-
-    status.textContent =
-      message;
-
-    status.className =
-      'register-status register-status--' +
-      type;
-
+    status.textContent = message;
+    status.className = 'register-status register-status--' + type;
   }
 
 
-  /*
-   * NAME
-   */
+  /* VALIDATION */
 
   function validateName() {
+    clearError('fullName');
 
-    clearError(
-      fields.fullName,
-      errors.fullName
-    );
+    const name = val('fullName').replace(/\s+/g, ' ');
 
-
-    const name =
-      value(fields.fullName);
-
-
-    if (name.length < 2) {
-
-      setError(
-        fields.fullName,
-        errors.fullName,
-        'Please enter your full name.'
-      );
-
+    if (name.length < 2 || name.length > 120) {
+      setError('fullName', 'Please enter a valid full name.');
       return false;
-
     }
 
-
     return true;
-
   }
-
-
-  /*
-   * MOBILE
-   */
 
   function validateMobile() {
+    clearError('mobile');
 
-    clearError(
-      fields.mobile,
-      errors.mobile
-    );
-
-
-    const mobile =
-      value(fields.mobile);
-
-
-    if (
-      !/^[6-9][0-9]{9}$/.test(
-        mobile
-      )
-    ) {
-
-      setError(
-        fields.mobile,
-        errors.mobile,
-        'Enter a valid 10-digit mobile number.'
-      );
-
+    if (!/^[6-9][0-9]{9}$/.test(val('mobile'))) {
+      setError('mobile', 'Enter a valid 10-digit mobile number.');
       return false;
-
     }
 
-
     return true;
-
   }
-
-
-  /*
-   * EMAIL
-   */
 
   function validateEmail() {
+    clearError('email');
 
-    clearError(
-      fields.email,
-      errors.email
-    );
-
-
-    const email =
-      value(fields.email);
-
-
-    const pattern =
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
+    const email = val('email');
 
     if (
-      !pattern.test(email)
+      email.length > 254 ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
     ) {
-
-      setError(
-        fields.email,
-        errors.email,
-        'Enter a valid email address.'
-      );
-
+      setError('email', 'Enter a valid email address.');
       return false;
-
     }
 
-
     return true;
-
   }
-
-
-  /*
-   * CITY
-   */
 
   function validateCity() {
+    clearError('currentCity');
 
-    clearError(
-      fields.currentCity,
-      errors.currentCity
-    );
+    const city = val('currentCity');
 
-
-    if (
-      value(fields.currentCity).length < 2
-    ) {
-
-      setError(
-        fields.currentCity,
-        errors.currentCity,
-        'Please enter your current city.'
-      );
-
+    if (city.length < 2 || city.length > 120) {
+      setError('currentCity', 'Please enter a valid current city.');
       return false;
-
     }
 
-
     return true;
-
   }
-
-
-  /*
-   * GENDER
-   */
 
   function validateGender() {
+    clearError('gender');
 
-    clearError(
-      fields.gender,
-      errors.gender
-    );
-
-
-    if (!value(fields.gender)) {
-
-      setError(
-        fields.gender,
-        errors.gender,
-        'Please select gender.'
-      );
-
+    if (!val('gender')) {
+      setError('gender', 'Please select gender.');
       return false;
-
     }
 
-
     return true;
-
   }
-
-
-  /*
-   * DOB
-   */
 
   function validateDOB() {
+    clearError('dob');
 
-    clearError(
-      fields.dob,
-      errors.dob
-    );
-
-
-    const dob =
-      value(fields.dob);
-
-
-    if (!dob) {
-
-      setError(
-        fields.dob,
-        errors.dob,
-        'Please select your date of birth.'
-      );
-
-      return false;
-
-    }
-
-
-    const selected =
-      new Date(
-        dob + 'T00:00:00'
-      );
-
-
-    const today =
-      new Date();
-
+    const dob = val('dob');
+    const date = new Date(dob + 'T00:00:00Z');
 
     if (
-      Number.isNaN(
-        selected.getTime()
-      ) ||
-      selected > today
+      !/^\d{4}-\d{2}-\d{2}$/.test(dob) ||
+      Number.isNaN(date.getTime()) ||
+      date.toISOString().slice(0, 10) !== dob ||
+      date.getTime() > Date.now() ||
+      date.getUTCFullYear() < 1900
     ) {
-
-      setError(
-        fields.dob,
-        errors.dob,
-        'Please enter a valid date of birth.'
-      );
-
+      setError('dob', 'Please enter a valid date of birth.');
       return false;
-
     }
-
 
     return true;
-
   }
 
-
-  /*
-   * PASSWORD
-   */
-
   function validatePassword() {
+    clearError('password');
 
-    clearError(
-      fields.password,
-      errors.password
-    );
-
-
-    const password =
-      fields.password.value;
-
-
-    if (password.length < 8) {
-
-      setError(
-        fields.password,
-        errors.password,
-        'Password must contain at least 8 characters.'
-      );
-
-      return false;
-
-    }
-
+    const password = fields.password?.value || '';
 
     if (
+      password.length < 8 ||
       !/[A-Za-z]/.test(password) ||
       !/[0-9]/.test(password)
     ) {
-
       setError(
-        fields.password,
-        errors.password,
-        'Password must contain at least one letter and one number.'
+        'password',
+        'Password must contain at least 8 characters, one letter and one number.'
       );
-
       return false;
-
     }
 
-
     return true;
-
   }
-
-
-  /*
-   * CONFIRM PASSWORD
-   */
 
   function validateConfirmPassword() {
+    clearError('confirmPassword');
 
-    clearError(
-      fields.confirmPassword,
-      errors.confirmPassword
-    );
-
-
-    if (
-      !fields.confirmPassword.value
-    ) {
-
-      setError(
-        fields.confirmPassword,
-        errors.confirmPassword,
-        'Please confirm your password.'
-      );
-
+    if (!fields.confirmPassword?.value) {
+      setError('confirmPassword', 'Please confirm your password.');
       return false;
-
     }
 
-
-    if (
-      fields.password.value !==
-      fields.confirmPassword.value
-    ) {
-
-      setError(
-        fields.confirmPassword,
-        errors.confirmPassword,
-        'Passwords do not match.'
-      );
-
+    if (fields.password.value !== fields.confirmPassword.value) {
+      setError('confirmPassword', 'Passwords do not match.');
       return false;
-
     }
-
 
     return true;
-
   }
-
-
-  /*
-   * CONSENT
-   */
 
   function validateConsent() {
+    clearError('consent');
 
-    errors.consent.hidden = true;
-
-    errors.consent.textContent = '';
-
-
-    if (
-      !fields.consent.checked
-    ) {
-
-      errors.consent.textContent =
-        'Please confirm before continuing.';
-
-      errors.consent.hidden =
-        false;
-
+    if (!fields.consent?.checked) {
+      setError('consent', 'Please confirm before continuing.');
       return false;
-
     }
-
 
     return true;
-
   }
-
-
-  /*
-   * ALL
-   */
 
   function validateForm() {
-
-    const checks = [
-
+    return [
       validateName(),
-
       validateMobile(),
-
       validateEmail(),
-
       validateCity(),
-
       validateGender(),
-
       validateDOB(),
-
       validatePassword(),
-
       validateConfirmPassword(),
-
       validateConsent()
-
-    ];
-
-
-    return checks.every(Boolean);
-
+    ].every(Boolean);
   }
 
 
-  /*
-   * MOBILE CLEANING
-   */
+  /* MOBILE INPUT */
 
-  fields.mobile.addEventListener(
-    'input',
-    function () {
-
-      this.value =
-        this.value
-          .replace(/\D/g, '')
-          .slice(0, 10);
-
-    }
-  );
+  fields.mobile?.addEventListener('input', function () {
+    this.value = this.value
+      .replace(/\D/g, '')
+      .slice(0, 10);
+  });
 
 
-  /*
-   * PASSWORD TOGGLE
-   */
+  /* PASSWORD SHOW / HIDE */
 
-  document
-    .querySelectorAll(
-      '.password-toggle'
-    )
-    .forEach(function (button) {
+  document.querySelectorAll('.password-toggle').forEach(button => {
+    button.addEventListener('click', function () {
 
-      button.addEventListener(
-        'click',
-        function () {
-
-          const target =
-            document.getElementById(
-              this.dataset.target
-            );
-
-
-          if (!target) {
-            return;
-          }
-
-
-          const show =
-            target.type ===
-            'password';
-
-
-          target.type =
-            show
-              ? 'text'
-              : 'password';
-
-
-          this.textContent =
-            show
-              ? 'Hide'
-              : 'Show';
-
-
-          this.setAttribute(
-            'aria-label',
-            show
-              ? 'Hide password'
-              : 'Show password'
-          );
-
-        }
+      const target = document.getElementById(
+        this.dataset.target
       );
 
+      if (!target) return;
+
+      const show = target.type === 'password';
+
+      target.type = show ? 'text' : 'password';
+
+      this.textContent = show ? 'Hide' : 'Show';
+
+      this.setAttribute(
+        'aria-label',
+        show ? 'Hide password' : 'Show password'
+      );
     });
+  });
 
 
-  /*
-   * DOB MAX
-   */
+  /* DOB MAX DATE */
 
-  const today =
-    new Date();
+  if (fields.dob) {
+    const now = new Date();
 
+    const localDate = new Date(
+      now.getTime() - now.getTimezoneOffset() * 60000
+    ).toISOString().slice(0, 10);
 
-  const year =
-    today.getFullYear();
-
-
-  const month =
-    String(
-      today.getMonth() + 1
-    ).padStart(2, '0');
+    fields.dob.max = localDate;
+  }
 
 
-  const day =
-    String(
-      today.getDate()
-    ).padStart(2, '0');
+  /* FIELD VALIDATION EVENTS */
 
+  [
+    ['fullName', 'blur', validateName],
+    ['mobile', 'blur', validateMobile],
+    ['email', 'blur', validateEmail],
+    ['currentCity', 'blur', validateCity],
+    ['gender', 'change', validateGender],
+    ['dob', 'change', validateDOB],
+    ['confirmPassword', 'blur', validateConfirmPassword],
+    ['consent', 'change', validateConsent]
+  ].forEach(([id, event, fn]) => {
+    fields[id]?.addEventListener(event, fn);
+  });
 
-  fields.dob.max =
-    `${year}-${month}-${day}`;
+  fields.password?.addEventListener('blur', () => {
+    validatePassword();
 
-
-  /*
-   * BLUR VALIDATION
-   */
-
-  fields.fullName.addEventListener(
-    'blur',
-    validateName
-  );
-
-
-  fields.mobile.addEventListener(
-    'blur',
-    validateMobile
-  );
-
-
-  fields.email.addEventListener(
-    'blur',
-    validateEmail
-  );
-
-
-  fields.currentCity.addEventListener(
-    'blur',
-    validateCity
-  );
-
-
-  fields.gender.addEventListener(
-    'change',
-    validateGender
-  );
-
-
-  fields.dob.addEventListener(
-    'change',
-    validateDOB
-  );
-
-
-  fields.password.addEventListener(
-    'blur',
-    function () {
-
-      validatePassword();
-
-
-      if (
-        fields.confirmPassword.value
-      ) {
-
-        validateConfirmPassword();
-
-      }
-
+    if (fields.confirmPassword?.value) {
+      validateConfirmPassword();
     }
-  );
+  });
 
 
-  fields.confirmPassword.addEventListener(
-    'blur',
-    validateConfirmPassword
-  );
+  /* BACKEND ERROR MAPPING */
+
+  const serverErrors = {
+    INVALID_NAME: 'fullName',
+    INVALID_MOBILE: 'mobile',
+    MOBILE_ALREADY_REGISTERED: 'mobile',
+    INVALID_EMAIL: 'email',
+    EMAIL_ALREADY_REGISTERED: 'email',
+    INVALID_CITY: 'currentCity',
+    INVALID_GENDER: 'gender',
+    INVALID_DOB: 'dob',
+    INVALID_PASSWORD: 'password',
+    PASSWORD_MISMATCH: 'confirmPassword',
+    CONSENT_REQUIRED: 'consent'
+  };
 
 
-  /*
-   * SUBMIT
-   */
+  /* REGISTRATION SUBMIT */
 
-  form.addEventListener(
-    'submit',
-    function (event) {
+  form.addEventListener('submit', async event => {
 
-      event.preventDefault();
+    event.preventDefault();
 
+    if (submitting) return;
 
-      clearStatus();
+    clearStatus();
 
+    if (!validateForm()) {
+      showStatus(
+        'Please check the highlighted fields before continuing.',
+        'error'
+      );
 
-      if (!validateForm()) {
+      form.querySelector('.is-invalid')?.focus();
+      return;
+    }
+
+    if (
+      !window.UCPP_API ||
+      typeof window.UCPP_API.registerCandidate !== 'function'
+    ) {
+      showStatus(
+        'Registration service is not available. Please refresh and try again.',
+        'error'
+      );
+      return;
+    }
+
+    submitting = true;
+
+    const originalText = submitButton
+      ? ('value' in submitButton
+          ? submitButton.value
+          : submitButton.textContent)
+      : '';
+
+    if (submitButton) {
+      submitButton.disabled = true;
+
+      if ('value' in submitButton) {
+        submitButton.value = 'Creating account...';
+      } else {
+        submitButton.textContent = 'Creating account...';
+      }
+    }
+
+    showStatus(
+      'Creating your account. Please wait...',
+      'info'
+    );
+
+    try {
+
+      const result = await window.UCPP_API.registerCandidate({
+
+        fullName: val('fullName'),
+        mobile: val('mobile'),
+        email: val('email').toLowerCase(),
+        currentCity: val('currentCity'),
+        gender: val('gender'),
+        dob: val('dob'),
+
+        password: fields.password.value,
+        confirmPassword: fields.confirmPassword.value,
+        consent: fields.consent.checked
+
+      });
+
+      if (result?.success === true) {
 
         showStatus(
-          'Please check the highlighted fields before continuing.',
-          'error'
+          'Registration successful! Redirecting to login...',
+          'success'
         );
 
+        form.reset();
 
-        const firstInvalid =
-          form.querySelector(
-            '.is-invalid'
-          );
-
-
-        firstInvalid?.focus();
-
+        window.location.assign('candidate-login.html');
 
         return;
-
       }
 
-
-      /*
-       * IMPORTANT
-       *
-       * We intentionally stop here.
-       *
-       * Candidate_Master is NOT modified.
-       * Existing V1 Password_Hash is NOT modified.
-       */
-
-      showStatus(
-        'Registration form is ready. Secure account creation will be enabled after the V2 registration service is connected.',
-        'info'
+      const message = String(
+        result?.message || 'Unable to register. Please try again.'
       );
 
-    }
-  );
+      const field = serverErrors[
+        String(result?.code || '')
+      ];
 
+      if (field) {
+        setError(field, message);
+        fields[field]?.focus();
+      }
+
+      showStatus(message, 'error');
+
+    } catch (error) {
+
+      showStatus(
+        error?.message || 'Network error. Please try again.',
+        'error'
+      );
+
+    } finally {
+
+      submitting = false;
+
+      if (submitButton) {
+        submitButton.disabled = false;
+
+        if ('value' in submitButton) {
+          submitButton.value = originalText;
+        } else {
+          submitButton.textContent = originalText;
+        }
+      }
+    }
+
+  });
 
 })();
