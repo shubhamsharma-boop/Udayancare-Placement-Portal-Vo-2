@@ -400,8 +400,8 @@
 
         form.reset();
 
-        window.location.assign('candidate-login.html');
-
+window.location.assign('login.html');
+        
         return;
       }
 
