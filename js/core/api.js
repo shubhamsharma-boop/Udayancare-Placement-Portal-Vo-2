@@ -104,6 +104,19 @@ if(!id)return Promise.reject(new Error('Job ID is required.'));
 return get('getPublicJob',{id:id});
 }
 
+/* CANDIDATE REGISTRATION — NEW */
+function registerCandidate(data={}){
+if(!data||typeof data!=='object'||Array.isArray(data)){
+return Promise.resolve({
+success:false,
+code:'INVALID_REGISTRATION_DATA',
+message:'Invalid registration details.',
+data:null
+});
+}
+return post('registerCandidate',data);
+}
+
 /* CANDIDATE LOGIN */
 function candidateLogin(email,password){
 const cleanEmail=String(email||'').trim().toLowerCase();
@@ -161,11 +174,10 @@ message:'Invalid profile data.',data:null
 return post('updateCandidateProfile',{sessionToken:token,profile:profile});
 }
 
-/* CANDIDATE EDUCATION — NEW */
+/* CANDIDATE EDUCATION */
 function saveCandidateEducation(sessionToken,education={}){
 const token=cleanSessionToken(sessionToken);
 if(!token)return invalidSessionResponse();
-
 if(!education||typeof education!=='object'||Array.isArray(education)){
 return Promise.resolve({
 success:false,
@@ -174,7 +186,6 @@ message:'Invalid education data.',
 data:null
 });
 }
-
 return post('saveCandidateEducation',{
 sessionToken:token,
 education:education
@@ -184,9 +195,7 @@ education:education
 function deleteCandidateEducation(sessionToken,educationId){
 const token=cleanSessionToken(sessionToken);
 const id=String(educationId||'').trim();
-
 if(!token)return invalidSessionResponse();
-
 if(!id){
 return Promise.resolve({
 success:false,
@@ -195,7 +204,6 @@ message:'Education record is required.',
 data:null
 });
 }
-
 return post('deleteCandidateEducation',{
 sessionToken:token,
 educationId:id
@@ -208,8 +216,7 @@ const token=cleanSessionToken(sessionToken);
 if(!token)return invalidSessionResponse();
 if(!experience||typeof experience!=='object'||Array.isArray(experience)){
 return Promise.resolve({
-success:false,code:'INVALID_EXPERIENCE',
-message:'Invalid experience data.',data:null
+success:false,code:'INVALID_EXPERIENCE',message:'Invalid experience data.',data:null
 });
 }
 return post('saveCandidateExperience',{sessionToken:token,experience:experience});
@@ -221,8 +228,7 @@ const id=String(experienceId||'').trim();
 if(!token)return invalidSessionResponse();
 if(!id){
 return Promise.resolve({
-success:false,code:'INVALID_EXPERIENCE_ID',
-message:'Experience record is required.',data:null
+success:false,code:'INVALID_EXPERIENCE_ID',message:'Experience record is required.',data:null
 });
 }
 return post('deleteCandidateExperience',{sessionToken:token,experienceId:id});
@@ -234,8 +240,7 @@ const token=cleanSessionToken(sessionToken);
 if(!token)return invalidSessionResponse();
 if(!certification||typeof certification!=='object'||Array.isArray(certification)){
 return Promise.resolve({
-success:false,code:'INVALID_CERTIFICATION',
-message:'Invalid certification data.',data:null
+success:false,code:'INVALID_CERTIFICATION',message:'Invalid certification data.',data:null
 });
 }
 return post('saveCandidateCertification',{sessionToken:token,certification:certification});
@@ -247,8 +252,7 @@ const id=String(certificationId||'').trim();
 if(!token)return invalidSessionResponse();
 if(!id){
 return Promise.resolve({
-success:false,code:'INVALID_CERTIFICATION_ID',
-message:'Certification record is required.',data:null
+success:false,code:'INVALID_CERTIFICATION_ID',message:'Certification record is required.',data:null
 });
 }
 return post('deleteCandidateCertification',{sessionToken:token,certificationId:id});
@@ -260,8 +264,7 @@ const token=cleanSessionToken(sessionToken);
 if(!token)return invalidSessionResponse();
 if(!socialLinks||typeof socialLinks!=='object'||Array.isArray(socialLinks)){
 return Promise.resolve({
-success:false,code:'INVALID_SOCIAL_LINKS',
-message:'Invalid social links.',data:null
+success:false,code:'INVALID_SOCIAL_LINKS',message:'Invalid social links.',data:null
 });
 }
 return post('saveCandidateSocialLinks',{sessionToken:token,socialLinks:socialLinks});
@@ -274,8 +277,7 @@ const id=String(jobId||'').trim();
 if(!token)return invalidSessionResponse();
 if(!id){
 return Promise.resolve({
-success:false,code:'INVALID_JOB',
-message:'Please select a valid job.',data:null
+success:false,code:'INVALID_JOB',message:'Please select a valid job.',data:null
 });
 }
 return post('candidateApplyJob',{sessionToken:token,jobId:id});
@@ -343,17 +345,15 @@ post,
 health,
 getJobs,
 getJob,
+registerCandidate,
 candidateLogin,
 validateCandidateSession,
 logoutCandidate,
 getCandidateDashboard,
 getCandidateProfile,
 updateCandidateProfile,
-
-// Education
 saveCandidateEducation,
 deleteCandidateEducation,
-
 saveCandidateExperience,
 deleteCandidateExperience,
 saveCandidateCertification,
